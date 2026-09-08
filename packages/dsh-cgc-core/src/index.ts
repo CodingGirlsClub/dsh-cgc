@@ -18,12 +18,14 @@ import { installApprovalGate } from './approval-gate.ts'
 import { CsrfTokenStore } from './csrf.ts'
 import { registerFamilyHandles, unregisterFamilyHandles } from './family.ts'
 import { CgcEngine } from './engine.ts'
+import { CgcEventHub, installSessionEventSource } from './events.ts'
 import { installErrorHook } from './hooks.ts'
 import { materializeAgentFaces, removeAgentFaces } from './materialize.ts'
 import { PendingMemory } from './pending-memory.ts'
 import { CGC_ANNOUNCEMENT, CGC_ANNOUNCEMENT_NAME, SECTION_ORDER } from './prompt.ts'
 import { CONFIRMATION_TTL_SETTING, CGC_SETTINGS_NAMESPACE, DEFAULT_CONFIRMATION_TTL_SECONDS } from './protocol.ts'
 import { makeRoutes } from './routes.ts'
+import { installEventChannel } from './routes/events.ts'
 import { Config, ConnectionStore } from './store.ts'
 
 /** Stable cordis plugin name. */
@@ -46,6 +48,14 @@ export type { ConnectionConfig } from './store.ts'
 export function apply(ctx: Context, config?: Config): void {
   const store = new ConnectionStore(config)
   const activity = new ActivityLog()
+  /** Live secret literals for literal-first redaction (RSK6). */
+  const storeSecrets = (): readonly string[] => {
+    const token = store.get().token
+    return token === '' ? [] : [token]
+  }
+  // U7 event channel: one aggregator per activation (seq stays monotonic
+  // across connection generations so stale panel cursors surface as gaps).
+  const events = new CgcEventHub(activity, storeSecrets)
 
   // KTD4 hard gate: dual-anchor fail-closed approval over mcp__cgc-2046__*.
   // Registered once rather than per sync — the listeners only fire for CGC
@@ -67,10 +77,7 @@ export function apply(ctx: Context, config?: Config): void {
   })
   installApprovalGate(ctx, {
     memory: pendingMemory,
-    secrets: () => {
-      const token = store.get().token
-      return token === '' ? [] : [token]
-    },
+    secrets: storeSecrets,
   })
   const engine = new CgcEngine(ctx, activity)
   ctx.effect(() => () => { engine.dispose() }, 'dsh-cgc-core: engine')
@@ -92,10 +99,11 @@ export function apply(ctx: Context, config?: Config): void {
   // Data plane (U6): routes invoke whitelisted platform tools through the
   // engine's live generation (engine.callTool); while disconnected every
   // data route answers 503 and write routes fail-closed 403 by construction.
-  const routes = makeRoutes({ store, engine, activity, data: engine, csrf })
+  const routes = makeRoutes({ store, engine, activity, data: engine, csrf, events })
   let disposeRoutes: (() => void) | undefined
   let disposeSection: (() => void) | undefined
   let disposeHook: (() => void) | undefined
+  let disposeEventSource: (() => void) | undefined
 
   // Register (or drop) every surface to match the current section. Each
   // group keeps one disposer; re-registering first tears the old one down so
@@ -114,6 +122,10 @@ export function apply(ctx: Context, config?: Config): void {
       disposeHook()
       disposeHook = undefined
     }
+    if (disposeEventSource !== undefined) {
+      disposeEventSource()
+      disposeEventSource = undefined
+    }
     if (!value.enabled) {
       void engine.sync(undefined)
       return
@@ -128,14 +140,17 @@ export function apply(ctx: Context, config?: Config): void {
     disposeRoutes = ctx.effect(
       () => {
         const disposers = routes.map(route => ctx.webServer.register(route))
+        // U7: the WS push endpoint shares the routes' lifecycle.
+        disposers.push(installEventChannel(ctx, events, storeSecrets))
         return () => { for (const dispose of disposers) dispose() }
       },
       'dsh-cgc-core: routes',
     )
-    disposeHook = installErrorHook(ctx, activity, () => {
-      const token = store.get().token
-      return token === '' ? [] : [token]
-    })
+    // U7 dual sources: the post-execute hook observes into the aggregator
+    // (which owns the feed mirror); the session/event subscription pairs
+    // tool/call → tool/result and dedupes by call id in the aggregator.
+    disposeHook = installErrorHook(ctx, activity, storeSecrets, events)
+    disposeEventSource = installSessionEventSource(ctx, events)
     // Settings-driven bridge rebuild (boot-restore and reconnect ride the
     // same path; connect failures land in the activity ring for /status).
     void engine.sync(

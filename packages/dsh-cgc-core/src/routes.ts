@@ -11,12 +11,14 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import type { ActivityLog } from './activity.ts'
+import type { CgcEventHub } from './events.ts'
 import type { CsrfTokenStore } from './csrf.ts'
 import type { CgcEngine } from './engine.ts'
 import { fenceOrReject } from './fence.ts'
 import { CGC_API, CGC_API_BASE, type CgcStatusBody } from './protocol.ts'
 import { redactText } from './redact.ts'
 import { courseRoutes } from './routes/courses.ts'
+import { eventRoutes } from './routes/events.ts'
 import { learnerRoutes } from './routes/learner.ts'
 import type { CgcDataSource, DataRouteDeps } from './routes/pipeline.ts'
 import { workspaceRoutes } from './routes/workspace.ts'
@@ -75,6 +77,12 @@ export interface CgcRoutesDeps {
    * window; while absent every data write route fails closed with 403.
    */
   csrf?: CsrfTokenStore | undefined
+  /**
+   * The U7 event hub; when present the seq polling route
+   * (GET /events?afterSeq=) joins the family. The WS push endpoint is
+   * registered separately via installEventChannel (registerUpgrade).
+   */
+  events?: CgcEventHub | undefined
 }
 
 /** The GET /status body: public projection only, never the token. */
@@ -211,5 +219,8 @@ export function makeRoutes(deps: CgcRoutesDeps): WebRoute[] {
     ...courseRoutes(dataDeps, CGC_API_BASE),
     ...learnerRoutes(dataDeps, CGC_API_BASE),
     ...workspaceRoutes(dataDeps, CGC_API_BASE),
+    // U7: seq incremental polling (the WS push endpoint's fallback), same
+    // shared fence and redaction discipline as the data plane (RSK3).
+    ...deps.events === undefined ? [] : eventRoutes(deps.events, CGC_API_BASE, () => storeSecrets(deps.store)),
   ]
 }

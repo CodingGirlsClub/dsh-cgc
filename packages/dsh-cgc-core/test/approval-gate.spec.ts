@@ -332,7 +332,7 @@ describe('apply: gate wiring (index.ts)', () => {
     await ctx.plugin(MemorySettings)
     const settings = ctx.get('settings')
     if (settings === undefined) throw new Error('settings service not mounted')
-    ctx.provide('webServer', { register: () => () => {} })
+    ctx.provide('webServer', { register: () => () => {}, registerUpgrade: () => () => {} })
     apply(ctx)
 
     // Section registration rides the settings inject hook — wait for it,

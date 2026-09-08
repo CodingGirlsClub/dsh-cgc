@@ -58,8 +58,9 @@ describe('apply: agent faces (U4 announcement + U5/U6 materialization)', () => {
     if (settings === undefined) throw new Error('settings service not mounted')
     provider = settings
     registeredRoutes = []
-    // Deliberate test stub: apply() only calls webServer.register; the real
-    // server is covered by routes.spec.ts over HTTP.
+    // Deliberate test stub: apply() calls webServer.register and (since U7)
+    // registerUpgrade; the real server is covered by routes.spec.ts and
+    // events.spec.ts over HTTP/real handshakes.
     const webServerStub: WebServer = {
       register: (route: WebRoute) => {
         registeredRoutes.push(route)
@@ -68,6 +69,7 @@ describe('apply: agent faces (U4 announcement + U5/U6 materialization)', () => {
           if (index >= 0) registeredRoutes.splice(index, 1)
         }
       },
+      registerUpgrade: () => () => {},
     } as unknown as WebServer
     ctx.provide('webServer', webServerStub)
     apply(ctx)
