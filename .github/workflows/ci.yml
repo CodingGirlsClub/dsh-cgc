@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Daily drift check against the live platform repo (KTD10).
+    - cron: '17 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+
+  contract-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out the CGC-2046 platform (public, no credentials)
+        uses: actions/checkout@v4
+        with:
+          repository: CodingGirlsClub/cgc_2046
+          path: platform
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify CONTRACT.md checklist against the platform snapshot
+        env:
+          CGC_PLATFORM_REPO: ${{ github.workspace }}/platform
+        run: node scripts/check-contract.mjs
