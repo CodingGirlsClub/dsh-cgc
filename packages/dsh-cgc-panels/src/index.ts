@@ -77,20 +77,16 @@ export function apply(ctx: Context): void {
     )
   }
 
-  // The family handoff module is a process singleton owned by the installed
-  // dsh-cgc-core instance — resolve it at runtime (never bundle a copy) and
-  // tolerate its absence: without core the tap injects an empty bootstrap
-  // and the client disables write flows with a visible notice.
-  let familyField: () => Record<string, string> | undefined = () => undefined
-  void import('dsh-cgc-core/src/family.ts').then(
-    (mod) => { familyField = mod.familyCsrfBootstrapField },
-    (error: unknown) => {
-      ctx.logger.warn(
-        `dsh-cgc-panels: dsh-cgc-core family handoff unavailable (${error instanceof Error ? error.message : String(error)}); `
-        + 'write flows stay disabled until core is installed and active.',
-      )
-    },
-  )
+  // The family handoff lives on globalThis under a Symbol.for key (see
+  // dsh-cgc-core/src/family.ts): a module-level import can never share
+  // state here because the host loader consumes core's bundled lib output
+  // while this package would import a second module-graph instance. Read
+  // lazily per request — core may apply after panels, and absence degrades
+  // to an empty bootstrap (client disables write flows with a notice).
+  const familyKey = Symbol.for('dsh-cgc-core:family-handoff')
+  const familyField = (): Record<string, string> | undefined =>
+    (globalThis as Record<symbol, { csrfBootstrapField(): Record<string, string> } | undefined>)[familyKey]
+      ?.csrfBootstrapField()
 
   ctx.effect(
     () => ctx.webServer.tapIndex(makeBootIndexTap(() => familyField())),

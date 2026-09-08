@@ -32,6 +32,9 @@ function ActivityRow({ entry }: { entry: CgcActivityEntry }): ReactNode {
   )
 }
 
+
+/** Hub refresh cadence while the surface is mounted (core v1 panel precedent). */
+const HUB_POLL_MS = 3000
 /** The hub surface (always visible; not role-gated). */
 export function HubSurface({ api, channel }: HubSurfaceProps): ReactNode {
   const [status, setStatus] = useState<CgcStatusBody | undefined>(undefined)
@@ -53,10 +56,17 @@ export function HubSurface({ api, channel }: HubSurfaceProps): ReactNode {
     )
   }, [api])
 
-  // Initial load + event-driven refresh (the hub reflects pushes live).
+  // Initial load + event-driven refresh + a slow poll: connect/disconnect
+  // transitions (settings edits, platform restarts) emit no tool events, so
+  // without polling the hub would show a stale state indefinitely (caught
+  // in the live rehearsal: hub stuck on Disconnected after reconnect).
   useEffect(() => {
     refreshStatus()
     refreshActivity()
+    const interval = setInterval(() => {
+      refreshStatus()
+      refreshActivity()
+    }, HUB_POLL_MS)
     const offEvent = channel.onEvent(() => {
       refreshStatus()
       refreshActivity()
@@ -66,6 +76,7 @@ export function HubSurface({ api, channel }: HubSurfaceProps): ReactNode {
       refreshActivity()
     })
     return () => {
+      clearInterval(interval)
       offEvent()
       offGap()
     }

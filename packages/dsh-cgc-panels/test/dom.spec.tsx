@@ -21,6 +21,7 @@ import { TutorEditor } from '../src/client/panel/surfaces/TutorEditor.tsx'
 import type { CgcStatusBody } from '../src/protocol.ts'
 import {
   click,
+  DISCONNECTED_STATUS,
   mount,
   mustQuery,
   NO_SESSION,
@@ -132,6 +133,26 @@ describe('hub connect form', () => {
     expect(delivered).toBe(connected)
     expect(mustQuery<HTMLInputElement>('input[data-field="token"]').value).toBe('')
     expect(document.body.innerHTML).not.toContain(secret)
+  })
+
+  it('polls status while mounted so connect transitions never go stale', async () => {
+    let statusCalls = 0
+    const api = stubApi({
+      status: async () => { statusCalls += 1; return DISCONNECTED_STATUS },
+    })
+    const { channel } = stubChannel()
+    vi.useFakeTimers()
+    try {
+      await mountTracked(<HubSurface api={api} channel={channel} />)
+      await settle()
+      const initial = statusCalls
+      expect(initial).toBeGreaterThan(0)
+      await act(async () => { vi.advanceTimersByTime(3000); await Promise.resolve() })
+      await settle()
+      expect(statusCalls).toBeGreaterThan(initial)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('renders 401 inline token-invalid with the re-issue link', async () => {
