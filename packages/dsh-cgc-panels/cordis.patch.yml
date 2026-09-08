@@ -1,0 +1,15 @@
+# dsh-cgc-panels bundle patch: inserts the panel-family plugin row into the
+# profile roster. Applied as a profile bundle layer (the `dsh.bundle.patch`
+# manifest field); activate with
+# `dsh plugin --profile <name> add <path-to-packages/dsh-cgc-panels>`.
+#
+# The row is a bare plugin by package name: the node half (exports ".") runs
+# in the host process (fail-fast host extension-point check + the CSRF
+# bootstrap index tap that hands dsh-cgc-core's csrfToken to the browser
+# half), and the `dsh.client` declaration in package.json makes the browser
+# half (exports "./client", served at /plugins/<id>/client.js) load in the
+# web GUI. Requires dsh-cgc-core installed and active in the same profile
+# (the panel family consumes its /api/dsh-cgc-core route family).
+- insert:
+    - id: dsh-cgc-panels
+      name: dsh-cgc-panels

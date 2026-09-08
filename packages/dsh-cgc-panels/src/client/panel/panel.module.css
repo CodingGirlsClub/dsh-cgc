@@ -1,0 +1,332 @@
+/* dsh-cgc-panels: sidebar entry + right-docked panel family. */
+
+.entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.entry:hover {
+  background: rgb(128 128 128 / 15%);
+}
+
+.dock {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  max-width: 92vw;
+  display: flex;
+  flex-direction: column;
+  background: Canvas;
+  color: CanvasText;
+  border-left: 1px solid rgb(128 128 128 / 30%);
+  box-shadow: -8px 0 24px rgb(0 0 0 / 12%);
+  z-index: 900;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgb(128 128 128 / 25%);
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.closeButton {
+  border: 1px solid rgb(128 128 128 / 35%);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgb(128 128 128 / 25%);
+}
+
+.tab,
+.tabActive {
+  border: 1px solid rgb(128 128 128 / 30%);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tabActive {
+  background: rgb(128 128 128 / 20%);
+  font-weight: 600;
+}
+
+.notice {
+  margin: 8px 14px 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgb(255 196 0 / 15%);
+  font-size: 12px;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+
+.block {
+  margin-bottom: 16px;
+}
+
+.blockTitle {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stateLine {
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.stateHint {
+  margin: 2px 0;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.stateBlock {
+  margin: 6px 0;
+}
+
+.statusLine {
+  margin: 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.link {
+  color: LinkText;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.input,
+.select {
+  padding: 5px 8px;
+  border: 1px solid rgb(128 128 128 / 35%);
+  border-radius: 6px;
+  background: Canvas;
+  color: CanvasText;
+  font-size: 13px;
+}
+
+.editor {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid rgb(128 128 128 / 35%);
+  border-radius: 6px;
+  background: Canvas;
+  color: CanvasText;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.button {
+  align-self: flex-start;
+  border: 1px solid rgb(128 128 128 / 35%);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  padding: 5px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.formError {
+  margin: 4px 0;
+  color: #b3261e;
+  font-size: 12px;
+}
+
+.rowList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: rgb(128 128 128 / 8%);
+}
+
+.rowLabel {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowLabelButton {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowAction {
+  flex-shrink: 0;
+  border: 1px solid rgb(128 128 128 / 35%);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rowAction:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.rowActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.activityList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.activityRow {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  align-items: baseline;
+}
+
+.activityTime {
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.activityLabel {
+  font-weight: 600;
+}
+
+.activityTool {
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.activityMessage {
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scalarList {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.scalarRow {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.scalarKey {
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.scalarValue {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.conflictCard {
+  border: 1px solid #b3261e;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 8px;
+}
+
+.surface {
+  display: flex;
+  flex-direction: column;
+}
+
+.hub {
+  display: flex;
+  flex-direction: column;
+}
