@@ -108,6 +108,62 @@ export const CGC_WRITE_TOOLS: readonly string[] = [
   'waive_payment',
 ]
 
+/**
+ * Early-gate list (KTD4 anchor B): the platform's 26 confirmation-flow
+ * tools (raw names), which prompt a fail-closed local approval on every
+ * originating call. `confirm_operation` is NOT here — it is the drift-free
+ * anchor A that always asks unless the pending_id memory proves the
+ * producing call was already approved; `cancel_operation` is never gated.
+ *
+ * This constant is generated from and checked by scripts/check-contract.mjs
+ * (three-way equality: platform `execute_confirmed/2` hit set = CONTRACT.md
+ * `gate` checklist = this list). Do not hand-edit without updating
+ * CONTRACT.md; CI fails on any drift (KTD10).
+ */
+export const CGC_CONFIRMATION_TOOLS: readonly string[] = [
+  'admin_approve_workspace_application',
+  'admin_create_workspace',
+  'admin_demote_user',
+  'admin_promote_user',
+  'admin_reassign_workspace_owner',
+  'admin_reject_workspace_application',
+  'approve_join_request',
+  'approve_prep',
+  'assign_roles',
+  'cancel_course',
+  'cancel_event',
+  'close_course',
+  'close_event',
+  'confirm_enrollment',
+  'create_invitation',
+  'launch_course',
+  'launch_event',
+  'override_prep_gate',
+  'refund_order',
+  'reject_enrollment',
+  'retry_refund',
+  'update_course',
+  'update_event',
+  'update_join_policy',
+  'update_prep_policy',
+  'waive_payment',
+]
+
+/** Built-in two-tool confirmation-flow tools (raw names), anchor A / passthrough. */
+export const CGC_CONFIRM_OPERATION = 'confirm_operation'
+export const CGC_CANCEL_OPERATION = 'cancel_operation'
+
+/**
+ * Default pending-confirmation TTL in seconds, matching the platform's
+ * `@default_ttl_seconds 600` (pending_operation.ex). The core settings
+ * section may override it via `confirmation_ttl_seconds`; deployments MUST
+ * keep it equal to the platform value (CONTRACT.md, checked by CI).
+ */
+export const DEFAULT_CONFIRMATION_TTL_SECONDS = 600
+
+/** Settings key (inside the dsh-cgc-core namespace) overriding the pending TTL. */
+export const CONFIRMATION_TTL_SETTING = 'confirmation_ttl_seconds'
+
 /** One recent-activity entry (in-memory ring; cleared on disconnect). */
 export interface CgcActivityEntry {
   kind: 'error' | 'write'

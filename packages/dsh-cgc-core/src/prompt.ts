@@ -17,6 +17,13 @@ export const CGC_ANNOUNCEMENT = `本机已安装 dsh-cgc-core 插件（CGC-2046 
 
 使用约束：
 - 多数业务工具作用于特定 workspace，其 schema 会声明 workspace_id 等作用域参数。需要而不知道取值时向用户询问，绝不编造 UUID 或其他标识。
-- 高风险写操作走平台的两段确认流：这类工具首次调用会返回 status="needs_confirmation"、pending_id 与 summary。先把摘要展示给用户并征得明确同意，再调用 confirm_operation（带 pending_id）；用户拒绝则调用 cancel_operation。pending 确认窗口默认约 10 分钟（平台可配），过期后 confirm_operation 会报业务错误——此时向用户说明并重新发起原工具调用。
+- 高风险写操作走平台的两段确认流：这类工具首次调用会返回 status="needs_confirmation"、pending_id 与 summary。先把摘要展示给用户并征得明确同意，再调用 confirm_operation（带 pending_id）；用户拒绝则调用 cancel_operation。
+
+pending 窗口纪律（确认流必读）：
+- needs_confirmation 响应只含 pending_id 与 summary，不含截止时间字段——不要向用户编造或承诺具体截止时间。
+- pending 确认窗口 TTL 默认 600 秒（平台部署可配，以平台值为准），请在窗口内尽快完成对话确认并调用 confirm_operation。
+- 本地审批门只认结构化信息：confirm_operation 前若再次弹审批，以弹窗中的来源工具与平台摘要为准。
+- confirm_operation 报 pending 已过期等业务错误时：向用户说明该 pending 已过期，然后重新发起原工具调用（会产生新的 pending_id），绝不复用旧 pending_id。
+- 用户拒绝后必须调用 cancel_operation（带 pending_id）终结该 pending，不留悬挂；对话确认时必须向用户复述平台返回的 server-side summary，不得自行改写操作内容。
 - 凭证纪律：永不读取、展示或回显 CGC 连接 token，也不要读取 DSH 的 settings.yaml 来寻找它。token 由用户在侧边栏「CGC」面板的连接表单中管理；连接状态与最近活动也在该面板展示。
 - 未连接时：如果 CGC 工具不可用或调用报连接/鉴权错误，引导用户打开侧边栏「CGC」面板完成连接（或参考 cgc-core-onboarding skill 的流程），不要反复重试。`
