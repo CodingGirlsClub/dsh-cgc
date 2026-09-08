@@ -1,0 +1,13 @@
+# dsh-cgc-core bundle patch: inserts the dual-face plugin row into the
+# profile roster. Applied as a profile bundle layer (the `dsh.bundle.patch`
+# manifest field); activate with
+# `dsh plugin --profile <name> add <path-to-packages/dsh-cgc-core>`.
+#
+# The row is a bare plugin by package name: the node half (exports ".") runs
+# in the host process (CGC MCP bridge, /api/dsh-cgc-core routes, agent tools,
+# system-prompt announcement, preset/skill materialization), and the
+# `dsh.client` declaration in package.json makes the browser half
+# (exports "./client", served at /plugins/<id>/client.js) load in the web GUI.
+- insert:
+    - id: dsh-cgc-core
+      name: dsh-cgc-core

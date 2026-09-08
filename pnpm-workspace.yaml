@@ -1,0 +1,12 @@
+packages:
+  - 'packages/*'
+
+onlyBuiltDependencies:
+  - esbuild
+
+# The @deepseek-ai/dsh-* 0.1.0-rc.6 packages are published same-day; disable
+# the minimumReleaseAge cooldown (same posture as the team's web profile).
+minimumReleaseAge: 0
+
+allowBuilds:
+  esbuild: true

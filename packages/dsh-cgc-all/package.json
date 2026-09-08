@@ -1,0 +1,27 @@
+{
+  "name": "dsh-cgc-all",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Aggregate bundle for the dsh-cgc plugin family: one bundle row pulls in every family member (currently dsh-cgc-core).",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "typecheck": "echo \"dsh-cgc-all: manifest-only package, nothing to typecheck\""
+  },
+  "dependencies": {
+    "dsh-cgc-core": "file:../dsh-cgc-core"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "cordis.patch.yml",
+    "README.md"
+  ]
+}

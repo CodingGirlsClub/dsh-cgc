@@ -1,0 +1,17 @@
+# dsh-cgc-all aggregate bundle patch: one profile-bundles row pulls in the
+# whole dsh-cgc plugin family. Member patches are restated here (aggregate
+# pattern: the aggregate's layer carries every member row, mirroring
+# @linxin666/dsh-web-ui-all); keep in sync when the family grows.
+#
+# Activate with `dsh plugin --profile <name> add <path-to-packages/dsh-cgc-all>`
+# and add "dsh-cgc-all" to the profile's dsh.profile.bundles list.
+
+# from self
+- insert:
+    - id: dsh-cgc-all
+      name: dsh-cgc-all
+
+# from ../dsh-cgc-core
+- insert:
+    - id: dsh-cgc-core
+      name: dsh-cgc-core
