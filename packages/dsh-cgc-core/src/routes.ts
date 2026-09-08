@@ -1,17 +1,25 @@
 /**
- * The /api/dsh-cgc-core route family: connect, status, disconnect. Every
- * route carries a loopback-only trust fence (plus browser same-origin
- * markers, mirroring dsh-ssh) — these endpoints rewrite the connection
- * config, so LAN-exposed dsh web deployments must not serve them. No route
- * ever returns the token or the Authorization header.
+ * The /api/dsh-cgc-core route family: connect, status, disconnect, the
+ * activity projection, and (through src/routes/*) the Appendix A data
+ * plane. Every route sits behind the shared loopback trust fence
+ * (src/fence.ts) — these endpoints rewrite the connection config and proxy
+ * platform data, so LAN-exposed dsh web deployments must not serve them.
+ * No route ever returns the token, the Authorization header, or the CSRF
+ * token.
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import type { ActivityLog } from './activity.ts'
+import type { CsrfTokenStore } from './csrf.ts'
 import type { CgcEngine } from './engine.ts'
-import { CGC_API, type CgcStatusBody } from './protocol.ts'
+import { fenceOrReject } from './fence.ts'
+import { CGC_API, CGC_API_BASE, type CgcStatusBody } from './protocol.ts'
 import { redactText } from './redact.ts'
+import { courseRoutes } from './routes/courses.ts'
+import { learnerRoutes } from './routes/learner.ts'
+import type { CgcDataSource, DataRouteDeps } from './routes/pipeline.ts'
+import { workspaceRoutes } from './routes/workspace.ts'
 import { validateMcpUrl, type ConnectionStore } from './store.ts'
 
 /** Live secret literals for literal-first redaction: the store's current token (RSK6). */
@@ -22,29 +30,6 @@ function storeSecrets(store: ConnectionStore): readonly string[] {
 
 /** Cap on JSON request bodies (connect payloads are tiny). */
 const MAX_JSON_BODY_BYTES = 64 * 1024
-
-/** Loopback literal check plus browser same-origin markers (mirrors the dsh-ssh routes' fence). */
-function isLoopbackRequest(request: IncomingMessage): boolean {
-  const address = request.socket.remoteAddress
-  if (address !== '127.0.0.1' && address !== '::1' && address !== '::ffff:127.0.0.1') return false
-  const host = request.headers.host
-  if (typeof host !== 'string') return false
-  let hostUrl: URL
-  try {
-    hostUrl = new URL(`http://${host}`)
-  } catch {
-    return false
-  }
-  if (hostUrl.hostname !== '127.0.0.1' && hostUrl.hostname !== 'localhost' && hostUrl.hostname !== '[::1]') return false
-  if (request.headers['sec-fetch-site'] === 'cross-site') return false
-  const origin = request.headers.origin
-  if (origin === undefined) return true
-  try {
-    return new URL(origin).host === hostUrl.host
-  } catch {
-    return false
-  }
-}
 
 /** One JSON response. */
 function writeJson(res: ServerResponse, status: number, body: unknown): void {
@@ -79,6 +64,17 @@ export interface CgcRoutesDeps {
   engine: CgcEngine
   /** The recent-activity ring. */
   activity: ActivityLog
+  /**
+   * The MCP call path for the data routes. Optional until the engine grows
+   * its callTool surface (orchestrator integration); while absent every
+   * data route answers 503 not_connected.
+   */
+  data?: CgcDataSource | undefined
+  /**
+   * The host-side CSRF token store. Optional for the same integration
+   * window; while absent every data write route fails closed with 403.
+   */
+  csrf?: CsrfTokenStore | undefined
 }
 
 /** The GET /status body: public projection only, never the token. */
@@ -117,20 +113,26 @@ function readField(body: Record<string, unknown>, field: string): string | undef
 }
 
 /**
- * Build every /api/dsh-cgc-core route (exact paths).
- * @param deps - store, engine, activity ring.
+ * Build every /api/dsh-cgc-core route. The legacy connect/status routes
+ * keep their `{error}` shape (the existing client depends on it); the data
+ * plane routes run the shared KTD5 pipeline with the `{ok, value}` /
+ * `{ok:false, error:{code,message}}` envelope.
+ * @param deps - store, engine, activity ring, optional data source and
+ *   CSRF store.
  * @returns the route list to register on ctx.webServer.
  */
 export function makeRoutes(deps: CgcRoutesDeps): WebRoute[] {
+  const dataDeps: DataRouteDeps = {
+    data: deps.data,
+    csrf: deps.csrf,
+    secrets: () => storeSecrets(deps.store),
+  }
   return [
     {
       kind: 'exact',
       path: CGC_API.connect,
       handler: async (req, res) => {
-        if (!isLoopbackRequest(req)) {
-          writeJson(res, 403, { error: 'forbidden: loopback-only' })
-          return
-        }
+        if (!fenceOrReject(req, res)) return
         const method = req.method ?? 'GET'
         if (method === 'POST') {
           const body = await readJsonBody(req)
@@ -184,10 +186,7 @@ export function makeRoutes(deps: CgcRoutesDeps): WebRoute[] {
       kind: 'exact',
       path: CGC_API.status,
       handler: (req, res) => {
-        if (!isLoopbackRequest(req)) {
-          writeJson(res, 403, { error: 'forbidden: loopback-only' })
-          return
-        }
+        if (!fenceOrReject(req, res)) return
         if (req.method !== 'GET') {
           writeJson(res, 405, { error: `method not allowed: ${req.method}` })
           return
@@ -195,5 +194,22 @@ export function makeRoutes(deps: CgcRoutesDeps): WebRoute[] {
         writeJson(res, 200, statusBody(deps))
       },
     },
+    {
+      kind: 'exact',
+      path: CGC_API_BASE + '/activity',
+      handler: (req, res) => {
+        if (!fenceOrReject(req, res)) return
+        if (req.method !== 'GET') {
+          writeJson(res, 405, { error: `method not allowed: ${req.method}` })
+          return
+        }
+        // The plugin-owned ActivityLog replaces the platform-side activity
+        // scan (Appendix A); entries are pre-redacted at push time.
+        writeJson(res, 200, { ok: true, activity: deps.activity.list() })
+      },
+    },
+    ...courseRoutes(dataDeps, CGC_API_BASE),
+    ...learnerRoutes(dataDeps, CGC_API_BASE),
+    ...workspaceRoutes(dataDeps, CGC_API_BASE),
   ]
 }
