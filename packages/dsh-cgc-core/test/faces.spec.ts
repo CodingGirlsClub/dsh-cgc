@@ -84,8 +84,13 @@ describe('apply: agent faces (U4 announcement + U5/U6 materialization)', () => {
     const section = assembly.sections.find(s => s.name === CGC_ANNOUNCEMENT_NAME)
     expect(section, 'announcement section missing').toBeDefined()
     const content = JSON.stringify(section)
-    for (const marker of ['mcp__cgc-2046__', 'workspace_id', 'confirm_operation', 'create_invitation', 'token']) {
+    // Discipline markers only — never specific business tool names.
+    for (const marker of ['mcp__cgc-2046__', 'workspace_id', 'confirm_operation', 'tools/list', 'token']) {
       expect(content).toContain(marker)
+    }
+    // Drift immunity: the announcement must not enumerate the tool set.
+    for (const name of ['get_workspace_context', 'list_members', 'get_workflow', 'get_step_output', 'save_step_output', 'create_invitation']) {
+      expect(content).not.toContain(name)
     }
   })
 
@@ -130,8 +135,9 @@ describe('apply: agent faces (U4 announcement + U5/U6 materialization)', () => {
       throw new Error('description missing or too short')
     }
     const body = match[2]!
-    // Success branch + failure branches + the three disciplines.
-    for (const marker of ['已连接', '401', '连接错误', 'workspace_id', 'confirm_operation', 'create_invitation', '吊销']) {
+    // Success branch + failure branches + discipline markers (incl. the
+    // verify-before-reporting step) — never specific business tool names.
+    for (const marker of ['已连接', '401', '连接错误', 'workspace_id', 'confirm_operation', '吊销', '报告完成']) {
       expect(body).toContain(marker)
     }
   })

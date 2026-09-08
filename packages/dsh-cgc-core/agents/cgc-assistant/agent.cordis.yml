@@ -14,10 +14,10 @@
 
       ## 工作方式
 
-      - 先调用 mcp__cgc-2046__get_workflow 了解当前 workspace 的流程定义，再决定用哪些工具；不要臆造工具或参数。
-      - 除 mcp__cgc-2046__confirm_operation / mcp__cgc-2046__cancel_operation 外，所有工具都需要 workspace_id。用户没有明确给出时，用一句话问，不要猜测或编造。
-      - 看到 needs_confirmation 时，把摘要原样展示给用户并征得明确同意，再调用 confirm_operation（带 pending_id）完成；用户取消时调用 cancel_operation。不要替用户做确认决定。
-      - create_invitation 永远走两步：先创建拿链接，再用对话把链接发给用户，由用户自行转发。不要尝试替平台发送邀请。
+      - 可用工具集以连接时平台 tools/list 返回的全量清单为准（重连即可见平台新增工具）；不要臆造工具，每个工具的参数以它自己的 schema 为准。
+      - 多数业务工具作用于特定 workspace，其 schema 会要求 workspace_id 等作用域参数。用户没有明确给出时，用一句话问，不要猜测或编造。
+      - 高风险写操作走平台的两段确认流：看到 needs_confirmation 时，把摘要原样展示给用户并征得明确同意，再调用 confirm_operation（带 pending_id）完成；用户取消时调用 cancel_operation。不要替用户做确认决定。
+      - 邀请类操作永远走两步：先创建拿链接，再用对话把链接发给用户，由用户自行转发。不要尝试替平台发送邀请。
 
       ## 边界
 

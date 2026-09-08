@@ -33,6 +33,16 @@ describe('redactText', () => {
     const once = redactText(`${TOKEN} Bearer x ${JWT}`)
     expect(redactText(once)).toBe(once)
   })
+
+  it('strips live secret literals verbatim before the shape pass (RSK6)', () => {
+    const rotated = 'cgc2!rotated-format.not-base64url'
+    expect(redactText(`401 while presenting ${rotated} on /mcp`, [rotated])).toBe(`401 while presenting ${REDACTED} on /mcp`)
+  })
+
+  it('ignores empty secrets and still runs the shape pass', () => {
+    expect(redactText(`token ${TOKEN}`, [''])).toBe(`token cgc_${REDACTED}`)
+    expect(redactText('plain text', [])).toBe('plain text')
+  })
 })
 
 describe('isSensitiveKey', () => {

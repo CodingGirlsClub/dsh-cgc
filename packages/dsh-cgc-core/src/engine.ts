@@ -6,7 +6,8 @@
  *
  * Deliberately out of scope (v1): reconnect supervision (Streamable HTTP
  * retries per call against an unreachable server), tools/list_changed
- * re-sync (the platform exposes a fixed 8-tool set).
+ * re-sync — every connect re-lists the server's tools, so a reconnect
+ * picks up platform growth by construction.
  *
  * Credential discipline: the token leaves this process only as the
  * Authorization header on /mcp requests. Error messages are redacted at the
@@ -23,8 +24,8 @@ import { CGC_SERVER_NAME, type CgcErrorCode } from './protocol.ts'
 import { redactText } from './redact.ts'
 import { classifyBridgeError, fetchToolDefinitions, registerTools } from './tools.ts'
 
-/** MCP client identity reported to the server. */
-const CLIENT_IDENTITY = { name: 'dsh-cgc-core', version: '0.1.0' }
+/** MCP client identity reported to the server (KTD1: ToolCallLog attribution). */
+const CLIENT_IDENTITY = { name: 'dsh', version: '0.1.0' }
 
 /** One connection request (both fields required to dial). */
 export interface ConnectTarget {
@@ -82,6 +83,9 @@ export class CgcEngine {
     await this.teardown()
     if (target === undefined) return
     const generation = this.generation
+    // The dialed token is this generation's live secret: every surfaced
+    // error text is literal-stripped of it before the shape pass (RSK6).
+    const secrets = [target.token]
     const client = new Client(CLIENT_IDENTITY, { capabilities: {} })
     try {
       // The SDK's StreamableHTTPClientTransport has optional callback
@@ -92,7 +96,7 @@ export class CgcEngine {
         requestInit: { headers: { Authorization: `Bearer ${target.token}` } },
       }) as Transport
       await client.connect(transport)
-      const definitions = await fetchToolDefinitions(client, CGC_SERVER_NAME)
+      const definitions = await fetchToolDefinitions(client, CGC_SERVER_NAME, secrets)
       if (generation !== this.generation) {
         // Torn down mid-flight: close quietly and register nothing.
         await client.close()
@@ -104,13 +108,13 @@ export class CgcEngine {
     } catch (error) {
       const classified = error instanceof HarnessError
         ? error
-        : classifyBridgeError(error, 'connect')
+        : classifyBridgeError(error, 'connect', secrets)
       this.activity.push({
         kind: 'error',
         at: Date.now(),
         source: 'connect',
         code: classified.code as CgcErrorCode,
-        message: redactText(classified.message),
+        message: redactText(classified.message, secrets),
       })
       try {
         await client.close()

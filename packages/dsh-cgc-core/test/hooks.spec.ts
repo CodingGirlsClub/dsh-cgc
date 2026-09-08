@@ -61,6 +61,24 @@ describe('installErrorHook', () => {
     expect(JSON.stringify(entries)).not.toContain(TOKEN)
   })
 
+  it('strips the live token literal even when it misses the shape regex (RSK6)', async () => {
+    // A rotated token format the shape regexes do not match.
+    const weirdToken = 'cgc2!rotated-format'
+    ctx = await mountRegistry()
+    const activity = new ActivityLog()
+    installErrorHook(ctx, activity, () => [weirdToken])
+    registerCgcTool(ctx, 'waive_payment', async () => {
+      throw new HarnessError(`CGC-2046 authentication failed for ${weirdToken}`, CGC_MCP_AUTH)
+    })
+    const result = await call(ctx, 'mcp__cgc-2046__waive_payment')
+    expect(result.isError).toBe(true)
+    const entries = activity.list()
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({ kind: 'error', source: 'tool', code: CGC_MCP_AUTH })
+    expect(JSON.stringify(entries)).not.toContain(weirdToken)
+    expect(JSON.stringify(entries)).toContain('[REDACTED]')
+  })
+
   it('does not record business failures (they stay in the conversation)', async () => {
     const { activity } = await setup()
     registerCgcTool(ctx!, 'get_workspace_context', async () => {

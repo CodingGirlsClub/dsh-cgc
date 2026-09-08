@@ -1,11 +1,11 @@
 ---
 name: cgc-core-onboarding
-description: Use when helping a user connect DSH to the CGC-2046 platform for the first time or after a failure — walks through entering the MCP URL and token in the CGC panel, verifying the connection, and recovering from auth or network errors. Also covers the workspace_id discipline, the two-tool confirmation flow, and the invitation link flow once connected.
+description: Use when helping a user connect DSH to the CGC-2046 platform for the first time or after a failure — walks through creating a token on the platform, entering the MCP URL and token in the CGC panel form, and verifying the connected status before reporting done. Also covers failure recovery, the per-schema workspace_id discipline, and the two-tool confirmation flow once connected.
 ---
 
 # CGC-2046 连接引导
 
-帮用户把 DSH 连上 CGC-2046 平台。连接本身由用户在「CGC」面板里完成——你负责引导、验证结果、解读错误。**你不经手 token**：不要让用户把 token 贴在对话里，不要替用户打开 settings.yaml。
+帮用户把 DSH 连上 CGC-2046 平台。连接本身由用户在「CGC」面板里完成——你负责引导、验证结果、解读错误。**token 永不进入对话、工具参数或日志**：不要让用户把 token 贴在对话里，不要替用户打开 settings.yaml，不要把 token 写进任何工具调用或文件。
 
 ## 1. 判断当前状态
 
@@ -14,9 +14,11 @@ description: Use when helping a user connect DSH to the CGC-2046 platform for th
 
 ## 2. 首次连接（或断开后的重连）
 
-1. 让用户在 CGC-2046 网站的 MCP 页面创建一个连接 token（建议用设备命名，如 `my-macbook`，便于日后吊销）。
-2. 打开 DSH 侧边栏的「CGC」面板，在连接表单填入 MCP URL（默认 `http://localhost:4102/mcp`）和上一步的 token，点「连接」。
-3. 面板状态变为「已连接」即成功，此时 `mcp__cgc-2046__*` 工具可用。
+严格三步，缺一不可：
+
+1. **引导创建 token**：让用户在 CGC-2046 网站的 MCP 页面创建一个连接 token（建议用设备命名，如 `my-macbook`，便于日后吊销）。token 由用户自己复制粘贴，经手人只有用户本人。
+2. **面板表单完成连接**：让用户打开 DSH 侧边栏的「CGC」面板，在连接表单填入 MCP URL（本地开发默认 `http://localhost:4102/mcp`）和上一步的 token，点「连接」。
+3. **验证状态后才报告完成**：面板状态区显示「已连接」、`mcp__cgc-2046__*` 工具可用，亲眼确认后再向用户报告完成；状态未变或出现错误就按第 3 节诊断，不要提前宣布成功。
 
 ## 3. 失败分支
 
@@ -26,7 +28,7 @@ description: Use when helping a user connect DSH to the CGC-2046 platform for th
 
 ## 4. 连接后的使用纪律
 
-- 除 `confirm_operation` / `cancel_operation` 外，所有 `mcp__cgc-2046__*` 工具都需要 `workspace_id`；用户没给就问一句，不要编造。
-- 写操作分两类：`save_step_output` 直接落库；`create_invitation` 走两段确认——返回 `needs_confirmation` + `pending_id` + 摘要时，把摘要原样转述给用户、征得明确同意 → 调 `confirm_operation`（带 `pending_id`）；用户取消则调 `cancel_operation`。确认发生在对话内，平台没有网站前端确认步骤；pending 约 10 分钟过期，过期需重新发起。
-- `create_invitation` 走两步：先创建拿链接，再把链接发给用户，由用户自行转发。不要替平台发送邀请。
-- token 是凭证：永远不在对话、日志、工具输出里展示或回显它；用户要管理 token 时，引导去面板表单或平台 MCP 页。
+- 平台工具集以连接时 tools/list 返回的全量清单为准；参数要求以各工具自身 schema 为准——多数业务工具的 schema 要求 `workspace_id` 等作用域参数，用户没给就问一句，不要编造。
+- 高风险写操作走平台的两段确认流：这类工具首次调用返回 `needs_confirmation` + `pending_id` + 摘要。把摘要原样转述给用户、征得明确同意 → 调 `confirm_operation`（带 `pending_id`）；用户取消则调 `cancel_operation`。确认发生在对话内，平台没有网站前端确认步骤；pending 默认约 10 分钟过期（平台可配），过期后向用户说明并重新发起原工具调用。
+- 邀请类操作走两步：先创建拿链接，再把链接发给用户，由用户自行转发。不要替平台外发邀请。
+- token 是凭证：永不进入对话、工具参数或日志——不展示、不回显、不写入任何文件；用户要管理 token 时，引导去面板表单或平台 MCP 页。

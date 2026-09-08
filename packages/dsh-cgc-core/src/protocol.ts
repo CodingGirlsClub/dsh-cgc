@@ -51,16 +51,61 @@ export const CGC_CONNECTION_ERROR_CODES: readonly CgcErrorCode[] = [
 ]
 
 /**
- * The platform's write/management tools (raw names). Successful calls to
+ * The platform's write-operation tools (raw names). Successful calls to
  * these are recorded in recent activity (name + timestamp + workspace_id
- * only — never arguments, never results, never the one-time
- * invitation_token a confirmed create_invitation returns).
+ * only — never arguments, never results: write results can carry one-time
+ * secrets such as invitation tokens, which must not leak into the feed).
+ *
+ * Derived from the platform source (last checked 2026-09 against
+ * server.ex:77-170 and mcp/tools/*.ex): every registered tool that mutates
+ * state = the 26 confirmation-flow tools (files defining
+ * `execute_confirmed/2`) + `confirm_operation` / `cancel_operation` + the
+ * 12 direct writes (`save_step_output`, `save_course_content`,
+ * `create_course`, `create_event`, `create_enrollment`, the prep-family
+ * writes, the learning-run writes). CONTRACT.md freezes the same set and
+ * CI re-verifies it against the platform (KTD10) — update both together.
  */
 export const CGC_WRITE_TOOLS: readonly string[] = [
-  'save_step_output',
-  'create_invitation',
-  'confirm_operation',
+  'admin_approve_workspace_application',
+  'admin_create_workspace',
+  'admin_demote_user',
+  'admin_promote_user',
+  'admin_reassign_workspace_owner',
+  'admin_reject_workspace_application',
+  'approve_join_request',
+  'approve_prep',
+  'assign_prep_tutor',
+  'assign_roles',
+  'cancel_course',
+  'cancel_event',
   'cancel_operation',
+  'claim_prep_authoring',
+  'close_course',
+  'close_event',
+  'confirm_enrollment',
+  'confirm_operation',
+  'create_course',
+  'create_enrollment',
+  'create_event',
+  'create_invitation',
+  'launch_course',
+  'launch_event',
+  'override_prep_gate',
+  'refund_order',
+  'reject_enrollment',
+  'request_changes_prep',
+  'retry_refund',
+  'save_course_content',
+  'save_step_output',
+  'start_learning_run',
+  'submit_learning_attempt',
+  'submit_prep_for_check',
+  'submit_prep_quality_report',
+  'update_course',
+  'update_event',
+  'update_join_policy',
+  'update_prep_policy',
+  'waive_payment',
 ]
 
 /** One recent-activity entry (in-memory ring; cleared on disconnect). */

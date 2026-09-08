@@ -35,10 +35,17 @@ export interface MockMcpServer {
   url: string
   /** Every tools/call observed, in order (raw names + arguments). */
   calls: Array<{ name: string; arguments: Record<string, unknown> }>
+  /** Every initialize handshake's clientInfo, in order (KTD1 attribution). */
+  clientInfos: Array<{ name: string; version: string }>
   close(): Promise<void>
 }
 
-/** The platform's 8 tools with their documented parameter shapes. */
+/**
+ * Representative platform tools with their documented parameter shapes:
+ * reads, direct writes, and confirmation-flow tools (incl. waive_payment).
+ * Not a snapshot of the live tool set — the bridge must register whatever
+ * tools/list returns, so tests assert against THIS list, never a constant.
+ */
 export const PLATFORM_TOOLS: MockTool[] = [
   { name: 'get_workspace_context', inputSchema: { type: 'object', properties: { workspace_id: { type: 'string' } }, required: ['workspace_id'] } },
   { name: 'list_members', inputSchema: { type: 'object', properties: { workspace_id: { type: 'string' } }, required: ['workspace_id'] } },
@@ -46,6 +53,9 @@ export const PLATFORM_TOOLS: MockTool[] = [
   { name: 'get_step_output', inputSchema: { type: 'object', properties: { workspace_id: { type: 'string' }, run_id: { type: 'string' }, step_key: { type: 'string' } }, required: ['workspace_id', 'run_id', 'step_key'] } },
   { name: 'save_step_output', inputSchema: { type: 'object', properties: { workspace_id: { type: 'string' }, run_id: { type: 'string' }, step_key: { type: 'string' }, output: { type: 'object' } }, required: ['workspace_id', 'run_id', 'step_key', 'output'] } },
   { name: 'create_invitation', inputSchema: { type: 'object', properties: { workspace_id: { type: 'string' }, target_email: { type: 'string' }, expires_in_hours: { type: 'integer' } }, required: ['workspace_id'] } },
+  { name: 'waive_payment', inputSchema: { type: 'object', properties: { workspace_id: { type: 'string' }, enrollment_id: { type: 'string' } }, required: ['workspace_id', 'enrollment_id'] } },
+  { name: 'assign_roles', inputSchema: { type: 'object', properties: { workspace_id: { type: 'string' }, membership_id: { type: 'string' }, role_names: { type: 'array', items: { type: 'string' } } }, required: ['workspace_id', 'membership_id', 'role_names'] } },
+  { name: 'refund_order', inputSchema: { type: 'object', properties: { workspace_id: { type: 'string' }, order_id: { type: 'string' } }, required: ['workspace_id', 'order_id'] } },
   { name: 'confirm_operation', inputSchema: { type: 'object', properties: { pending_id: { type: 'string' } }, required: ['pending_id'] } },
   { name: 'cancel_operation', inputSchema: { type: 'object', properties: { pending_id: { type: 'string' } }, required: ['pending_id'] } },
 ]
@@ -69,6 +79,7 @@ export async function startMockMcp(opts?: {
 }): Promise<MockMcpServer> {
   const tools = opts?.tools ?? PLATFORM_TOOLS
   const calls: MockMcpServer['calls'] = []
+  const clientInfos: MockMcpServer['clientInfos'] = []
 
   const httpServer = http.createServer((req, res) => {
     void (async () => {
@@ -84,6 +95,20 @@ export async function startMockMcp(opts?: {
         body = JSON.parse(Buffer.concat(chunks).toString('utf8'))
       } catch {
         body = undefined
+      }
+      // Capture the initialize handshake's clientInfo (KTD1 attribution).
+      if (typeof body === 'object' && body !== null && 'method' in body && body.method === 'initialize' && 'params' in body) {
+        const params = body.params
+        if (typeof params === 'object' && params !== null && 'clientInfo' in params) {
+          const clientInfo = params.clientInfo
+          if (
+            typeof clientInfo === 'object' && clientInfo !== null &&
+            'name' in clientInfo && typeof clientInfo.name === 'string' &&
+            'version' in clientInfo && typeof clientInfo.version === 'string'
+          ) {
+            clientInfos.push({ name: clientInfo.name, version: clientInfo.version })
+          }
+        }
       }
       // Stateless: one server + transport pair per request (SDK pattern).
       const server = new Server({ name: 'cgc-2046', version: '0.0.0-test' }, { capabilities: { tools: {} } })
@@ -120,6 +145,7 @@ export async function startMockMcp(opts?: {
   return {
     url: `http://127.0.0.1:${port}/mcp`,
     calls,
+    clientInfos,
     async close() {
       const closed = Promise.withResolvers<void>()
       httpServer.close(() => closed.resolve())

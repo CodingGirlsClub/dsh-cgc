@@ -4,13 +4,13 @@ CGC-2046 平台连接器：让 DSH（DeepSeek Harness）成为与 OpenClacky 平
 
 ## 功能
 
-- **MCP 桥**：`StreamableHTTPClientTransport` 连接 CGC-2046 平台的 `/mcp` 端点（Bearer token 鉴权），平台固定的 8 个工具以 `mcp__cgc-2046__<rawName>` 注册进 DSH 工具注册表，连接断开即注销。
+- **MCP 桥**：`StreamableHTTPClientTransport` 连接 CGC-2046 平台的 `/mcp` 端点（Bearer token 鉴权），平台的全部工具——连接时 tools/list 返回的全量清单，随平台演进、重连即更新——以 `mcp__cgc-2046__<rawName>` 注册进 DSH 工具注册表，连接断开即注销。
 - **连接状态面板**：侧边栏「CGC」入口 + 居中面板——连接表单（MCP URL + token）、状态徽标、平台网站链接、「在平台管理 / 吊销 token」链接、最近活动列表。
 - **路由族** `/api/dsh-cgc-core`：`GET /status`、`POST /connect`、`DELETE /connect`（loopback-only）。
 - **cgc-assistant 预设**：persona + skill-filesystem + tool-skill 组合，附带本插件的 onboarding skill。
 - **onboarding skill** `cgc-core-onboarding`：首次连接 / 失败恢复引导。
 - **错误 hook**：连接类失败（`CGC_MCP_AUTH` / `CGC_MCP_TIMEOUT` / `CGC_MCP_CONNECT`）脱敏后进活动列表；业务失败留在对话内；写工具成功按 R9 记名 + workspace_id。
-- **系统提示公告**：连接后向 system prompt 宣告 8 工具可用与 workspace_id / 两段确认纪律。
+- **系统提示公告**：连接后向 system prompt 宣告平台工具面与使用纪律（工具集以运行时 tools/list 为准，不做静态枚举）。
 
 ## 安装（本地开发）
 
@@ -31,6 +31,9 @@ dsh plugin --profile <profile> add /path/to/dsh-plugin/packages/dsh-cgc-all
 2. 打开 DSH 侧边栏「CGC」面板，填入 MCP URL（本地开发默认 `http://localhost:4102/mcp`）与 token，点「连接」。
 3. 状态变为「已连接」后，`mcp__cgc-2046__*` 工具对 agent 可用。
 
-## 契约
+## 安全边界
 
-与平台侧的稳定约定见仓库根目录 [`CONTRACT.md`](../CONTRACT.md)。
+- **静态存储（RSK7）**：连接 token 以明文存于 `~/.dsh/settings.yaml`（0600，DSH settings 服务负责原子写入）。`role('secret')` 只保证 wire surface（settings UI、`describe({redactSecrets: true})` 等）剥离 token，**不加密静态存储**——任何能读该文件的本地进程都能拿到 token。吊销与轮换在平台网站的 MCP 页面进行。
+- **外发脱敏（RSK6）**：活动列表、路由错误体、日志等所有外发文本先做当前 token 字面值精确替换，再跑形状正则（`cgc_` token / Bearer 值 / 裸 JWT）；token 格式演进也不会绕过脱敏。
+
+## 契约

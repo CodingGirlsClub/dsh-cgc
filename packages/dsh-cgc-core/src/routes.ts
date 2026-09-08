@@ -14,6 +14,12 @@ import { CGC_API, type CgcStatusBody } from './protocol.ts'
 import { redactText } from './redact.ts'
 import { validateMcpUrl, type ConnectionStore } from './store.ts'
 
+/** Live secret literals for literal-first redaction: the store's current token (RSK6). */
+function storeSecrets(store: ConnectionStore): readonly string[] {
+  const token = store.get().token
+  return token === '' ? [] : [token]
+}
+
 /** Cap on JSON request bodies (connect payloads are tiny). */
 const MAX_JSON_BODY_BYTES = 64 * 1024
 
@@ -155,7 +161,7 @@ export function makeRoutes(deps: CgcRoutesDeps): WebRoute[] {
           try {
             await deps.store.connect({ ...url === undefined ? {} : { url }, ...token === undefined ? {} : { token } })
           } catch (error) {
-            writeJson(res, 503, { error: redactText(error instanceof Error ? error.message : String(error)) })
+            writeJson(res, 503, { error: redactText(error instanceof Error ? error.message : String(error), storeSecrets(deps.store)) })
             return
           }
           writeJson(res, 200, { status: statusBody(deps) })
@@ -165,7 +171,7 @@ export function makeRoutes(deps: CgcRoutesDeps): WebRoute[] {
           try {
             await deps.store.disconnect()
           } catch (error) {
-            writeJson(res, 503, { error: redactText(error instanceof Error ? error.message : String(error)) })
+            writeJson(res, 503, { error: redactText(error instanceof Error ? error.message : String(error), storeSecrets(deps.store)) })
             return
           }
           writeJson(res, 200, { status: statusBody(deps) })

@@ -240,4 +240,26 @@ describe('/api/dsh-cgc-core routes', () => {
     expect(JSON.stringify(body)).not.toContain(TOKEN)
     expect(JSON.stringify(body)).not.toContain('Bearer')
   })
+
+  it('redacts the stored token literal from 503 error bodies even off-shape (RSK6)', async () => {
+    const weirdToken = 'cgc2!rotated-format'
+    const ctx = await mountRegistry()
+    const activity = new ActivityLog()
+    const engine = new CgcEngine(ctx, activity)
+    cleanups.push(async () => { await engine.teardown() })
+    const store = new ConnectionStore({ url: 'http://localhost:4102/mcp', token: weirdToken })
+    store.setWriter(async () => { throw new Error(`settings write failed while storing ${weirdToken}`) })
+    const http_ = await serve(makeRoutes({ store, engine, activity }))
+    cleanups.push(http_.close)
+
+    const response = await fetch(http_.base + CGC_API.connect, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: 'cgc_' + 'z'.repeat(43) }),
+    })
+    expect(response.status).toBe(503)
+    const text = await response.text()
+    expect(text).not.toContain(weirdToken)
+    expect(text).toContain('[REDACTED]')
+  })
 })

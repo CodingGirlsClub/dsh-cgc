@@ -7,7 +7,8 @@
  *
  * The bridge boundary (KTD1): no reconnect supervision (Streamable HTTP
  * retries per call against an unreachable server), no tools/list_changed
- * re-sync (the platform exposes a fixed 8-tool set).
+ * re-sync — every (re)connect re-runs tools/list, so platform tool growth
+ * is picked up on reconnect by construction.
  */
 
 import { createHash } from 'node:crypto'
@@ -122,9 +123,9 @@ function createOutput(rawName: string, structuredSchema: JsonSchemaNode | undefi
 }
 
 /** Human-readable, credential-free message from an arbitrary thrown value. */
-function bridgeErrorMessage(error: unknown): string {
+function bridgeErrorMessage(error: unknown, secrets: readonly string[]): string {
   const raw = error instanceof Error ? error.message : String(error)
-  return redactText(raw)
+  return redactText(raw, secrets)
 }
 
 /**
@@ -134,12 +135,13 @@ function bridgeErrorMessage(error: unknown): string {
  * semantics belong to the pipeline.
  * @param error - the thrown transport/SDK failure.
  * @param label - what was being done (raw tool name or 'connect').
+ * @param secrets - live secret literals stripped from the message first (RSK6).
  */
-export function classifyBridgeError(error: unknown, label: string): HarnessError {
+export function classifyBridgeError(error: unknown, label: string, secrets: readonly string[] = []): HarnessError {
   if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
     throw error
   }
-  const message = bridgeErrorMessage(error)
+  const message = bridgeErrorMessage(error, secrets)
   const shape = error as { name?: unknown; code?: unknown } | null
   // McpError sets its name; its codes are JSON-RPC (negative).
   if (typeof shape === 'object' && shape !== null && shape.name === 'McpError' && typeof shape.code === 'number') {
@@ -163,9 +165,10 @@ export function classifyBridgeError(error: unknown, label: string): HarnessError
 /**
  * Create the execute function for one bridged tool: sends an uncached
  * tools/call with the raw wire name, maps isError results to coded business
- * failures, and classifies transport failures.
+ * failures, and classifies transport failures. `secrets` carries the live
+ * connection token so error text is literal-stripped before shape regexes.
  */
-function createExecutor(client: Client, rawName: string): ToolDefinition['execute'] {
+function createExecutor(client: Client, rawName: string, secrets: readonly string[]): ToolDefinition['execute'] {
   return async (args, exec) => {
     // The agent loop passes JSON.parse(model_arguments); a bare scalar means
     // the model misbehaved — fall back to {} so the server produces a
@@ -179,7 +182,7 @@ function createExecutor(client: Client, rawName: string): ToolDefinition['execut
         { signal: exec.signal, timeout: CGC_TOOL_CALL_TIMEOUT_MS },
       )
     } catch (error) {
-      throw classifyBridgeError(error, rawName)
+      throw classifyBridgeError(error, rawName, secrets)
     }
 
     // Legacy toolResult shape; normalize to a content array.
@@ -187,7 +190,7 @@ function createExecutor(client: Client, rawName: string): ToolDefinition['execut
       const rendered: unknown = 'toolResult' in result ? JSON.stringify(result['toolResult']) : '(no output)'
       const text = typeof rendered === 'string' ? rendered : '(no output)'
       if (result['isError'] === true) {
-        throw new HarnessError(redactText(text), CGC_MCP_BUSINESS)
+        throw new HarnessError(redactText(text, secrets), CGC_MCP_BUSINESS)
       }
       return {
         content: [{ type: 'text', text }],
@@ -200,7 +203,7 @@ function createExecutor(client: Client, rawName: string): ToolDefinition['execut
     if (result['isError'] === true) {
       // Platform business failure (e.g. expired pending confirmation): the
       // server answered; the model reads the text and recovers.
-      throw new HarnessError(redactText(text), CGC_MCP_BUSINESS)
+      throw new HarnessError(redactText(text, secrets), CGC_MCP_BUSINESS)
     }
     return {
       content,
@@ -220,8 +223,9 @@ export interface ListedTool {
 /**
  * Fetch the server's full tool list (uncached pagination drain) and build
  * this generation's ToolDefinitions without touching the registry.
+ * `secrets` is forwarded to every executor for literal-first redaction.
  */
-export async function fetchToolDefinitions(client: Client, serverName: string): Promise<Map<string, ToolDefinition>> {
+export async function fetchToolDefinitions(client: Client, serverName: string, secrets: readonly string[] = []): Promise<Map<string, ToolDefinition>> {
   const definitions = new Map<string, ToolDefinition>()
   let cursor: string | undefined
   do {
@@ -242,7 +246,7 @@ export async function fetchToolDefinitions(client: Client, serverName: string): 
         description: tool.description ?? '',
         parameters: tool.inputSchema,
         output: createOutput(tool.name, supportedOutputSchema(tool.outputSchema)),
-        execute: createExecutor(client, tool.name),
+        execute: createExecutor(client, tool.name, secrets),
       })
     }
     cursor = response.nextCursor

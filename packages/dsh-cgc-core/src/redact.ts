@@ -1,8 +1,11 @@
 /**
  * Credential redaction for every text/value the plugin surfaces: activity
- * entries, route error bodies, log lines. Two layers, mirroring the
+ * entries, route error bodies, log lines. Three layers, mirroring the
  * platform's own Cgc2046.Mcp.Redact plus token-shape scrubbing:
  *
+ * 0. Live literals (RSK6): the current connection token is replaced
+ *    verbatim first — a token that no longer matches the shape regex
+ *    (format evolution, encoding variants) still cannot leak.
  * 1. String shapes: connection tokens (`cgc_` + 43 base64url), Bearer
  *    header values, and bare JWTs are replaced in free text.
  * 2. Key names: in structured values, keys matching the platform's
@@ -26,11 +29,18 @@ const BEARER_PATTERN = /bearer\s+[^\s"']+/gi
 const JWT_PATTERN = /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/g
 
 /**
- * Scrub credential shapes from free text. Applied to every error message
- * before it reaches the activity log, a route response, or a log line.
+ * Scrub credentials from free text. Applied to every error message before
+ * it reaches the activity log, a route response, or a log line.
+ * @param text - the free text to scrub.
+ * @param secrets - live secret literals (e.g. the current connection token)
+ *   replaced verbatim BEFORE the shape pass (RSK6); empty strings ignored.
  */
-export function redactText(text: string): string {
-  return text
+export function redactText(text: string, secrets: readonly string[] = []): string {
+  let out = text
+  for (const secret of secrets) {
+    if (secret !== '') out = out.split(secret).join(REDACTED)
+  }
+  return out
     .replace(CGC_TOKEN_PATTERN, `cgc_${REDACTED}`)
     .replace(BEARER_PATTERN, `Bearer ${REDACTED}`)
     .replace(JWT_PATTERN, REDACTED)

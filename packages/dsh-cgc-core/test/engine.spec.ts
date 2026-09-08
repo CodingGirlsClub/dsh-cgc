@@ -1,8 +1,8 @@
 /**
  * Engine tests: the CGC MCP bridge against a real in-process MCP server —
- * connect registers the 8 tools under mcp__cgc-2046__*, calls round-trip,
- * teardown unregisters, and failures land in the activity ring with coded,
- * redacted messages.
+ * connect registers whatever tools/list returns under mcp__cgc-2046__*,
+ * calls round-trip, teardown unregisters, and failures land in the
+ * activity ring with coded, redacted messages.
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
@@ -17,7 +17,7 @@ import {
   CGC_TOOL_PREFIX,
 } from '../src/protocol.ts'
 import { classifyBridgeError, publicToolName } from '../src/tools.ts'
-import { mountRegistry, startMockMcp, type MockMcpServer } from './helpers.ts'
+import { mountRegistry, PLATFORM_TOOLS, startMockMcp, type MockMcpServer } from './helpers.ts'
 
 const testSignal = new AbortController().signal
 const TOKEN = 'cgc_' + 'a'.repeat(43)
@@ -92,7 +92,7 @@ describe('CgcEngine', () => {
     for (const server of servers.splice(0)) await server.close()
   })
 
-  it('connects and registers the 8 platform tools under mcp__cgc-2046__*', async () => {
+  it('connects and registers every listed tool under mcp__cgc-2046__*', async () => {
     const server = await startMockMcp({ token: TOKEN })
     servers.push(server)
     const ctx = await mountRegistry()
@@ -101,7 +101,7 @@ describe('CgcEngine', () => {
     await engine.sync({ url: server.url, token: TOKEN })
 
     expect(engine.connected).toBe(true)
-    expect(engine.toolNames).toHaveLength(8)
+    expect(engine.toolNames).toHaveLength(PLATFORM_TOOLS.length)
     expect(ctx.tools.get('mcp__cgc-2046__get_workspace_context')).toBeDefined()
     expect(ctx.tools.get('mcp__cgc-2046__confirm_operation')).toBeDefined()
     for (const name of engine.toolNames) expect(name.startsWith(CGC_TOOL_PREFIX)).toBe(true)
@@ -161,7 +161,7 @@ describe('CgcEngine', () => {
     const ctx = await mountRegistry()
     const engine = new CgcEngine(ctx, new ActivityLog())
     await engine.sync({ url: server.url, token: TOKEN })
-    expect(engine.toolNames).toHaveLength(8)
+    expect(engine.toolNames).toHaveLength(PLATFORM_TOOLS.length)
 
     await engine.sync(undefined)
 
@@ -238,7 +238,77 @@ describe('CgcEngine', () => {
     await engine.sync(undefined)
     await engine.sync({ url: server.url, token: TOKEN })
     expect(engine.connected).toBe(true)
-    expect(engine.toolNames).toHaveLength(8)
+    expect(engine.toolNames).toHaveLength(PLATFORM_TOOLS.length)
+    await engine.dispose()
+  })
+
+  it('reports clientInfo.name "dsh" at initialize (KTD1 attribution)', async () => {
+    const server = await startMockMcp({ token: TOKEN })
+    servers.push(server)
+    const ctx = await mountRegistry()
+    const engine = new CgcEngine(ctx, new ActivityLog())
+
+    await engine.sync({ url: server.url, token: TOKEN })
+
+    expect(engine.connected).toBe(true)
+    expect(server.clientInfos.length).toBeGreaterThan(0)
+    for (const info of server.clientInfos) expect(info.name).toBe('dsh')
+    await engine.dispose()
+  })
+
+  it('registers exactly the tools/list set — N in, N out, schemas passed through (drift-immune parity)', async () => {
+    // A hypothetical future confirmation-flow tool the fixture predates.
+    const futureTool = {
+      name: 'purge_workspace',
+      inputSchema: { type: 'object', properties: { workspace_id: { type: 'string' }, reason: { type: 'string' } }, required: ['workspace_id', 'reason'] },
+    }
+    const tools = [...PLATFORM_TOOLS, futureTool]
+    const server = await startMockMcp({ token: TOKEN, tools })
+    servers.push(server)
+    const ctx = await mountRegistry()
+    const engine = new CgcEngine(ctx, new ActivityLog())
+
+    await engine.sync({ url: server.url, token: TOKEN })
+
+    expect(engine.toolNames).toHaveLength(tools.length)
+    expect(engine.toolNames.every(name => name.startsWith(CGC_TOOL_PREFIX))).toBe(true)
+    for (const tool of tools) {
+      const registered = ctx.tools.get(`${CGC_TOOL_PREFIX}${tool.name}`)
+      expect(registered, tool.name).toBeDefined()
+      expect(registered?.parameters).toEqual(tool.inputSchema)
+    }
+    await engine.dispose()
+  })
+
+  it('strips the live token literal from tool error text even off-shape (RSK6)', async () => {
+    // A token format the shape regexes do not match: only the literal pass catches it.
+    const weirdToken = 'cgc2!rotated-format.not-base64url'
+    const server = await startMockMcp({
+      token: weirdToken,
+      handlers: {
+        waive_payment: () => ({
+          content: [{ type: 'text', text: `upstream 401 while presenting ${weirdToken}` }],
+          isError: true,
+        }),
+      },
+    })
+    servers.push(server)
+    const ctx = await mountRegistry()
+    const engine = new CgcEngine(ctx, new ActivityLog())
+    await engine.sync({ url: server.url, token: weirdToken })
+
+    const result = await ctx.tools.execute({
+      signal: testSignal,
+      callId: CallId('c4'),
+      name: 'mcp__cgc-2046__waive_payment',
+      arguments: { workspace_id: 'ws-1', enrollment_id: 'e-1' },
+    })
+
+    expect(result.isError).toBe(true)
+    if (result.isError) {
+      expect(result.error.message).not.toContain(weirdToken)
+      expect(result.error.message).toContain('[REDACTED]')
+    }
     await engine.dispose()
   })
 })

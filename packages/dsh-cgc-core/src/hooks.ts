@@ -4,9 +4,10 @@
  * polls. Classification is code-based (HarnessError.code), never text —
  * CGC_MCP_CONNECTION / CGC_MCP_AUTH / CGC_MCP_TIMEOUT land in the feed,
  * business failures (CGC_MCP_BUSINESS) stay in the agent conversation.
- * Successful write/management calls are recorded by name + timestamp +
- * workspace_id only — never arguments, never results (create_invitation's
- * one-time invitation_token must not leak into the feed).
+ * Successful write-operation calls (CGC_WRITE_TOOLS) are recorded by name +
+ * timestamp + workspace_id only — never arguments, never results (write
+ * results can carry one-time secrets such as invitation tokens, which must
+ * not leak into the feed).
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -18,9 +19,11 @@ import { redactText } from './redact.ts'
  * Install the post-execute observer.
  * @param ctx - host plugin context (the listener rides the plugin fiber).
  * @param activity - the ring the panel's GET /status polls.
+ * @param secrets - live secret literals (the store's current connection
+ *   token) stripped verbatim from error text before the shape pass (RSK6).
  * @returns disposer removing the listener.
  */
-export function installErrorHook(ctx: Context, activity: ActivityLog): () => void {
+export function installErrorHook(ctx: Context, activity: ActivityLog, secrets: () => readonly string[] = () => []): () => void {
   return ctx.on('tools/post-execute', async (exec, result, next) => {
     const decision = await next()
     try {
@@ -33,7 +36,7 @@ export function installErrorHook(ctx: Context, activity: ActivityLog): () => voi
             at: Date.now(),
             source: 'tool',
             code,
-            message: redactText(result.error.message),
+            message: redactText(result.error.message, secrets()),
             tool: exec.name,
           })
         }

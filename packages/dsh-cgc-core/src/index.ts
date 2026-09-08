@@ -1,10 +1,11 @@
 /**
- * dsh-cgc-core — host half. Mounts the CGC MCP bridge engine (8 platform
- * tools as mcp__cgc-2046__*), the /api/dsh-cgc-core route family, the
- * error/activity hook, the system-prompt announcement, and the KTD6
- * preset/skill materialization. The browser half (./client) renders the
- * connection status panel. Everything rides official npm SDK packages and
- * the settings service — no dsh source changes.
+ * dsh-cgc-core — host half. Mounts the CGC MCP bridge engine (the
+ * platform's tools as mcp__cgc-2046__*, whatever tools/list returns), the
+ * /api/dsh-cgc-core route family, the error/activity hook, the
+ * system-prompt announcement, and the KTD6 preset/skill materialization.
+ * The browser half (./client) renders the connection status panel.
+ * Everything rides official npm SDK packages and the settings service —
+ * no dsh source changes.
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -91,7 +92,10 @@ export function apply(ctx: Context, config?: Config): void {
       },
       'dsh-cgc-core: routes',
     )
-    disposeHook = installErrorHook(ctx, activity)
+    disposeHook = installErrorHook(ctx, activity, () => {
+      const token = store.get().token
+      return token === '' ? [] : [token]
+    })
     // Settings-driven bridge rebuild (boot-restore and reconnect ride the
     // same path; connect failures land in the activity ring for /status).
     void engine.sync(
