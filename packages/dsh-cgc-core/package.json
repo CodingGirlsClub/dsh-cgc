@@ -1,6 +1,6 @@
 {
   "name": "dsh-cgc-core",
-  "description": "CGC-2046 core connector for the DeepSeek Harness: bridges the platform's /mcp endpoint (Bearer connection token) into DSH as native mcp__cgc-2046__* agent tools, with a connection status panel (sidebar entry + connect form + recent activity), a cgc-assistant agent preset, an onboarding skill, a system-prompt announcement, and a redacting error hook. Hot-pluggable — mounted via cordis.patch.yml + `dsh plugin --profile <name> add`, no dsh source changes.",
+  "description": "CGC-2046 core connector for the DeepSeek Harness: bridges the platform's /mcp endpoint (Bearer connection token) into DSH as native mcp__cgc-2046__* agent tools, with a connection status panel (sidebar entry + connect form + recent activity), an onboarding skill, a system-prompt announcement, and a redacting error hook. Role agent presets live in the sibling dsh-cgc-roles package. Hot-pluggable — mounted via cordis.patch.yml + `dsh plugin --profile <name> add`, no dsh source changes.",
   "version": "0.1.0",
   "type": "module",
   "engines": {
@@ -92,7 +92,6 @@
     "lib/**/*.d.ts",
     "lib/**/*.d.ts.map",
     "src",
-    "agents",
     "skills",
     "cordis.patch.yml",
     "README.md"

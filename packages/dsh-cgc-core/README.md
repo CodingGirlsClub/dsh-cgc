@@ -7,7 +7,7 @@ CGC-2046 平台连接器：让 DSH（DeepSeek Harness）成为与 OpenClacky 平
 - **MCP 桥**：`StreamableHTTPClientTransport` 连接 CGC-2046 平台的 `/mcp` 端点（Bearer token 鉴权），平台的全部工具——连接时 tools/list 返回的全量清单，随平台演进、重连即更新——以 `mcp__cgc-2046__<rawName>` 注册进 DSH 工具注册表，连接断开即注销。
 - **连接状态面板**：侧边栏「CGC」入口 + 居中面板——连接表单（MCP URL + token）、状态徽标、平台网站链接、「在平台管理 / 吊销 token」链接、最近活动列表。
 - **路由族** `/api/dsh-cgc-core`：`GET /status`、`POST /connect`、`DELETE /connect`（loopback-only）。
-- **cgc-assistant 预设**：persona + skill-filesystem + tool-skill 组合，附带本插件的 onboarding skill。
+- **角色预设已迁出**：cgc-assistant / cgc-tutor / cgc-admin 薄壳预设在兄弟包 `dsh-cgc-roles`，由该包自行物化（KTD6）；本包只物化 onboarding skill。
 - **onboarding skill** `cgc-core-onboarding`：首次连接 / 失败恢复引导。
 - **错误 hook**：连接类失败（`CGC_MCP_AUTH` / `CGC_MCP_TIMEOUT` / `CGC_MCP_CONNECT`）脱敏后进活动列表；业务失败留在对话内；写工具成功按 R9 记名 + workspace_id。
 - **系统提示公告**：连接后向 system prompt 宣告平台工具面与使用纪律（工具集以运行时 tools/list 为准，不做静态枚举）。

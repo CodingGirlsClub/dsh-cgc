@@ -1,0 +1,54 @@
+{
+  "name": "dsh-cgc-roles",
+  "description": "CGC-2046 role thin-shell agent presets for the DeepSeek Harness: cgc-assistant, cgc-tutor, and cgc-admin. Each preset is a discipline-only shell whose role methods come solely from the platform's get_role_playbook; the package materializes its own agents/ snapshot into <dshHome>/.agent-presets/ (KTD6).",
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "dsh-cgc-core": "file:../dsh-cgc-core"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@types/node": "^22.20.0",
+    "tsdown": "0.22.2",
+    "typescript": "~5.7.2",
+    "vitest": "^3.0.0",
+    "yaml": "^2.4.2"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.js.map",
+    "lib/**/*.d.ts",
+    "lib/**/*.d.ts.map",
+    "src",
+    "agents",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && tsdown",
+    "bundle": "tsdown",
+    "watch": "tsdown --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
+}

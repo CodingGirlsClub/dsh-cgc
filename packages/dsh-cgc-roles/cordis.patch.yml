@@ -1,0 +1,12 @@
+# dsh-cgc-roles bundle patch: inserts the role preset plugin row into the
+# profile roster. Applied as a profile bundle layer (the `dsh.bundle.patch`
+# manifest field); activate with
+# `dsh plugin --profile <name> add <path-to-packages/dsh-cgc-roles>`.
+#
+# Host-only plugin (exports "."): on mount it materializes the three role
+# presets (cgc-assistant / cgc-tutor / cgc-admin) into
+# <dshHome>/.agent-presets/; on unload it removes exactly those three
+# directories. There is no browser half.
+- insert:
+    - id: dsh-cgc-roles
+      name: dsh-cgc-roles

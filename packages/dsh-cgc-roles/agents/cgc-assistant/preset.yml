@@ -1,0 +1,3 @@
+name: cgc-assistant
+description: CGC-2046 平台通用助手 — playbook 优先，按用户角色经 mcp__cgc-2046__* 工具读写平台业务数据
+order: 60

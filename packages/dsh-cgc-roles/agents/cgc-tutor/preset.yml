@@ -1,0 +1,3 @@
+name: cgc-tutor
+description: CGC-2046 平台教研助教 — 按 tutor 角色的平台 playbook 工作（playbook 拉取失败即停止）
+order: 61
