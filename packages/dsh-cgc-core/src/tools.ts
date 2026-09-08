@@ -212,6 +212,30 @@ function createExecutor(client: Client, rawName: string, secrets: readonly strin
   }
 }
 
+/**
+ * Data-plane call path (U6): invoke one whitelisted platform tool on the
+ * live client and return the raw result record. Same transport, timeout,
+ * and classified/redacted errors as the bridged executors, but no
+ * executor-side normalization or isError mapping — the route pipeline owns
+ * result shaping (structuredContent/text) and the 502 isError layer.
+ */
+export async function callRawTool(
+  client: Client,
+  rawName: string,
+  args: Record<string, unknown>,
+  secrets: readonly string[] = [],
+): Promise<Record<string, unknown>> {
+  try {
+    return await client.request(
+      { method: 'tools/call', params: { name: rawName, arguments: args } },
+      RawCallToolResultSchema,
+      { timeout: CGC_TOOL_CALL_TIMEOUT_MS },
+    )
+  } catch (error) {
+    throw classifyBridgeError(error, rawName, secrets)
+  }
+}
+
 /** One listed MCP tool, the fields the bridge consumes. */
 export interface ListedTool {
   name: string

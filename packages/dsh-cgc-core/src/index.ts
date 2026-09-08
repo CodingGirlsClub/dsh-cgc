@@ -14,11 +14,15 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import { ActivityLog } from './activity.ts'
+import { installApprovalGate } from './approval-gate.ts'
+import { CsrfTokenStore } from './csrf.ts'
+import { registerFamilyHandles, unregisterFamilyHandles } from './family.ts'
 import { CgcEngine } from './engine.ts'
 import { installErrorHook } from './hooks.ts'
 import { materializeAgentFaces, removeAgentFaces } from './materialize.ts'
+import { PendingMemory } from './pending-memory.ts'
 import { CGC_ANNOUNCEMENT, CGC_ANNOUNCEMENT_NAME, SECTION_ORDER } from './prompt.ts'
-import { CGC_SETTINGS_NAMESPACE } from './protocol.ts'
+import { CONFIRMATION_TTL_SETTING, CGC_SETTINGS_NAMESPACE, DEFAULT_CONFIRMATION_TTL_SECONDS } from './protocol.ts'
 import { makeRoutes } from './routes.ts'
 import { Config, ConnectionStore } from './store.ts'
 
@@ -42,6 +46,32 @@ export type { ConnectionConfig } from './store.ts'
 export function apply(ctx: Context, config?: Config): void {
   const store = new ConnectionStore(config)
   const activity = new ActivityLog()
+
+  // KTD4 hard gate: dual-anchor fail-closed approval over mcp__cgc-2046__*.
+  // Registered once rather than per sync — the listeners only fire for CGC
+  // tools, which exist only while the bridge is connected. The pending
+  // memory's TTL re-reads the resolved settings section on every check, so
+  // a `confirmation_ttl_seconds` edit applies without a reload; the key is
+  // not schema-declared (schemastery passes user keys through) and invalid
+  // values fall back to the platform default.
+  const pendingMemory = new PendingMemory({
+    ttlSeconds: () => {
+      const section = ctx.get('settings')?.get(CGC_NAMESPACE)
+      const ttl = typeof section === 'object' && section !== null
+        ? (section as Record<string, unknown>)[CONFIRMATION_TTL_SETTING]
+        : undefined
+      return typeof ttl === 'number' && Number.isFinite(ttl) && ttl > 0
+        ? ttl
+        : DEFAULT_CONFIRMATION_TTL_SECONDS
+    },
+  })
+  installApprovalGate(ctx, {
+    memory: pendingMemory,
+    secrets: () => {
+      const token = store.get().token
+      return token === '' ? [] : [token]
+    },
+  })
   const engine = new CgcEngine(ctx, activity)
   ctx.effect(() => () => { engine.dispose() }, 'dsh-cgc-core: engine')
 
@@ -52,7 +82,17 @@ export function apply(ctx: Context, config?: Config): void {
     sctx.effect(() => () => { store.setWriter(undefined) }, 'dsh-cgc-core: settings writer')
   })
 
-  const routes = makeRoutes({ store, engine, activity })
+  // CSRF store (KTD5): one process-lifetime token; write routes require the
+  // X-CGC-CSRF-Token header to match. The panels family (U8) reads it
+  // through the family handoff to inject into its client bootstrap channel.
+  const csrf = new CsrfTokenStore()
+  registerFamilyHandles({ csrf })
+  ctx.effect(() => () => { unregisterFamilyHandles() }, 'dsh-cgc-core: family handles')
+
+  // Data plane (U6): routes invoke whitelisted platform tools through the
+  // engine's live generation (engine.callTool); while disconnected every
+  // data route answers 503 and write routes fail-closed 403 by construction.
+  const routes = makeRoutes({ store, engine, activity, data: engine, csrf })
   let disposeRoutes: (() => void) | undefined
   let disposeSection: (() => void) | undefined
   let disposeHook: (() => void) | undefined

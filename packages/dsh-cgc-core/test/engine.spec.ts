@@ -129,6 +129,28 @@ describe('CgcEngine', () => {
     await engine.dispose()
   })
 
+  it('callTool round-trips the raw record for the data-plane routes', async () => {
+    const server = await startMockMcp({ token: TOKEN })
+    servers.push(server)
+    const ctx = await mountRegistry()
+    const engine = new CgcEngine(ctx, new ActivityLog())
+    await engine.sync({ url: server.url, token: TOKEN })
+
+    const result = await engine.callTool('get_workspace_context', { workspace_id: 'ws-9' }) as Record<string, unknown>
+
+    expect(server.calls).toEqual([{ name: 'get_workspace_context', arguments: { workspace_id: 'ws-9' } }])
+    expect(JSON.stringify(result)).toContain('get_workspace_context result')
+    await engine.dispose()
+  })
+
+  it('callTool fails closed with CGC_MCP_CONNECTION while disconnected', async () => {
+    const ctx = await mountRegistry()
+    const engine = new CgcEngine(ctx, new ActivityLog())
+
+    await expect(engine.callTool('get_workspace_context', {})).rejects.toMatchObject({ code: CGC_MCP_CONNECTION })
+    await engine.dispose()
+  })
+
   it('carries the two-tool confirmation flow payloads through as-is', async () => {
     const server = await startMockMcp({
       token: TOKEN,

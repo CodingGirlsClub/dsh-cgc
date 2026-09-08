@@ -20,9 +20,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import type { ActivityLog } from './activity.ts'
-import { CGC_SERVER_NAME, type CgcErrorCode } from './protocol.ts'
+import { CGC_MCP_CONNECTION, CGC_SERVER_NAME, type CgcErrorCode } from './protocol.ts'
 import { redactText } from './redact.ts'
-import { classifyBridgeError, fetchToolDefinitions, registerTools } from './tools.ts'
+import { callRawTool, classifyBridgeError, fetchToolDefinitions, registerTools } from './tools.ts'
 
 /** MCP client identity reported to the server (KTD1: ToolCallLog attribution). */
 const CLIENT_IDENTITY = { name: 'dsh', version: '0.1.0' }
@@ -59,9 +59,27 @@ export class CgcEngine {
 
   private connectedFlag = false
 
+  /** The live generation's secrets (the dialed token), for callTool error redaction. */
+  private secrets: readonly string[] = []
+
   /** The currently registered public tool names (status surface / tests). */
   get toolNames(): string[] {
     return [...this.disposers.keys()]
+  }
+
+  /**
+   * Data-plane call path for the route family (U6 glue): invokes one
+   * whitelisted platform tool through the live generation's client and
+   * returns the raw result record for the pipeline to shape. Throws
+   * CGC_MCP_CONNECTION while disconnected — the route pipeline normally
+   * 503s on `connected` first; this guard covers the teardown race.
+   */
+  async callTool(rawName: string, args: Record<string, unknown>): Promise<unknown> {
+    const client = this.client
+    if (client === undefined || !this.connectedFlag) {
+      throw new HarnessError('CGC-2046 MCP server not connected', CGC_MCP_CONNECTION)
+    }
+    return callRawTool(client, rawName, args, this.secrets)
   }
 
   /**
@@ -105,6 +123,7 @@ export class CgcEngine {
       this.disposers = registerTools(this.ctx, definitions)
       this.client = client
       this.connectedFlag = true
+      this.secrets = secrets
     } catch (error) {
       const classified = error instanceof HarnessError
         ? error
@@ -133,6 +152,7 @@ export class CgcEngine {
     this.generation += 1
     for (const dispose of this.disposers.values()) dispose()
     this.disposers = new Map()
+    this.secrets = []
     this.connectedFlag = false
     const client = this.client
     this.client = undefined
