@@ -22,7 +22,7 @@
     }
   },
   "dependencies": {
-    "dsh-cgc-core": "file:../dsh-cgc-core"
+    "dsh-cgc-core": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
@@ -43,6 +43,20 @@
     "README.md"
   ],
   "license": "AGPL-3.0-only",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cgc-2046",
+    "codinggirlsclub"
+  ],
+  "homepage": "https://github.com/CodingGirlsClub/dsh-cgc#readme",
+  "bugs": "https://github.com/CodingGirlsClub/dsh-cgc/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CodingGirlsClub/dsh-cgc.git",
+    "directory": "packages/dsh-cgc-roles"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsdown",
     "bundle": "tsdown",

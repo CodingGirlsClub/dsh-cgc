@@ -3,8 +3,22 @@
 # pattern: the aggregate's layer carries every member row, mirroring
 # @linxin666/dsh-web-ui-all); keep in sync when the family grows.
 #
-# Activate with `dsh plugin --profile <name> add <path-to-packages/dsh-cgc-all>`
-# and add "dsh-cgc-all" to the profile's dsh.profile.bundles list.
+# Activate with `dsh plugin --profile <name> add dsh-cgc-all` and add
+# "dsh-cgc-all" to the profile's dsh.profile.bundles list (the CLI does this
+# reconciliation for you).
+#
+# Double-mount guard: each restated member row carries a `disabled: !!js`
+# expression that backs the row off when another *enabled* entry under a
+# different id already mounts the same package (e.g. a manual mount line or
+# another aggregate). Two mounts of dsh-cgc-core would register
+# /api/dsh-cgc-core twice and fail the whole plugin tree at boot
+# ("duplicate prefix route"). The expression excludes the row's own id, so
+# it never matches itself. Same-id duplicates (e.g. the member bundle
+# installed directly AND this aggregate both in dsh.profile.bundles) cannot
+# be guarded this way: the loader rejects duplicate entry ids before any
+# entry is created, so remove the member bundle from dsh.profile.bundles
+# when switching to the aggregate channel — `dsh plugin add` appends, it
+# does not dedupe.
 
 # from self
 - insert:
@@ -15,3 +29,16 @@
 - insert:
     - id: dsh-cgc-core
       name: dsh-cgc-core
+      disabled: !!js "[...ctx.loader.entries()].some((e) => e.options.name === 'dsh-cgc-core' && e.options.id !== 'dsh-cgc-core' && !e.disabled)"
+
+# from ../dsh-cgc-roles
+- insert:
+    - id: dsh-cgc-roles
+      name: dsh-cgc-roles
+      disabled: !!js "[...ctx.loader.entries()].some((e) => e.options.name === 'dsh-cgc-roles' && e.options.id !== 'dsh-cgc-roles' && !e.disabled)"
+
+# from ../dsh-cgc-panels
+- insert:
+    - id: dsh-cgc-panels
+      name: dsh-cgc-panels
+      disabled: !!js "[...ctx.loader.entries()].some((e) => e.options.name === 'dsh-cgc-panels' && e.options.id !== 'dsh-cgc-panels' && !e.disabled)"

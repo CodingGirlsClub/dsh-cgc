@@ -15,8 +15,14 @@ importers:
   packages/dsh-cgc-all:
     dependencies:
       dsh-cgc-core:
-        specifier: file:../dsh-cgc-core
+        specifier: workspace:*
         version: link:../dsh-cgc-core
+      dsh-cgc-panels:
+        specifier: workspace:*
+        version: link:../dsh-cgc-panels
+      dsh-cgc-roles:
+        specifier: workspace:*
+        version: link:../dsh-cgc-roles
 
   packages/dsh-cgc-core:
     dependencies:
@@ -112,7 +118,7 @@ importers:
   packages/dsh-cgc-panels:
     dependencies:
       dsh-cgc-core:
-        specifier: file:../dsh-cgc-core
+        specifier: workspace:*
         version: link:../dsh-cgc-core
     devDependencies:
       '@deepseek-ai/cordis':
@@ -167,7 +173,7 @@ importers:
   packages/dsh-cgc-roles:
     dependencies:
       dsh-cgc-core:
-        specifier: file:../dsh-cgc-core
+        specifier: workspace:*
         version: link:../dsh-cgc-core
     devDependencies:
       '@deepseek-ai/cordis':

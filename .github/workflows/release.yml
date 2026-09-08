@@ -1,0 +1,66 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Publish authorization model:
+# - Only tags matching v* trigger this workflow, and a guard step below
+#   verifies the tagged commit is an ancestor of the default branch (main) —
+#   releases always ship what main shipped, never a side branch.
+# - The job runs in the `npm-release` GitHub environment. Configure that
+#   environment with required reviewers (repo Settings → Environments →
+#   npm-release → Required reviewers) so every publish waits for explicit
+#   human approval. Merges to main alone can never mint a release.
+# - npm provenance: id-token: write lets the runner mint a Sigstore-signed
+#   provenance attestation per package (`--provenance`). Every package.json
+#   carries repository.url pointing at this repo so the attestation verifies.
+# - Registry auth: set the NPM_TOKEN repository secret (npm granular access
+#   token with publish rights on the four dsh-cgc-* packages) for the first
+#   release. Once npm trusted publishers are linked for all four packages
+#   (see README "Release" — one-time setup), the token can be rotated away;
+#   keep the secret present until then.
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: npm-release
+    permissions:
+      id-token: write # npm provenance (Sigstore OIDC attestation)
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # needed for the default-branch ancestry check
+
+      - name: Verify tag is on the default branch
+        run: |
+          git fetch origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main || {
+            echo "::error::tag $GITHUB_REF_NAME is not an ancestor of origin/main; refusing to publish"
+            exit 1
+          }
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org/
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+
+      # pnpm -r publishes in workspace topological order:
+      # dsh-cgc-core → dsh-cgc-roles / dsh-cgc-panels → dsh-cgc-all,
+      # so the aggregator is never published before its members.
+      # workspace:* ranges are rewritten to the real version on pack.
+      - run: pnpm -r publish --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

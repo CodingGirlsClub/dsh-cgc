@@ -1,15 +1,30 @@
 {
   "name": "dsh-cgc-all",
   "version": "0.1.0",
-  "private": true,
-  "description": "Aggregate bundle for the dsh-cgc plugin family: one bundle row pulls in every family member (currently dsh-cgc-core).",
+  "description": "Aggregate bundle for the dsh-cgc plugin family: one bundle row pulls in every family member (dsh-cgc-core, dsh-cgc-roles, dsh-cgc-panels).",
   "license": "AGPL-3.0-only",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cgc-2046",
+    "codinggirlsclub"
+  ],
+  "homepage": "https://github.com/CodingGirlsClub/dsh-cgc#readme",
+  "bugs": "https://github.com/CodingGirlsClub/dsh-cgc/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CodingGirlsClub/dsh-cgc.git",
+    "directory": "packages/dsh-cgc-all"
+  },
   "type": "module",
   "scripts": {
     "typecheck": "echo \"dsh-cgc-all: manifest-only package, nothing to typecheck\""
   },
   "dependencies": {
-    "dsh-cgc-core": "file:../dsh-cgc-core"
+    "dsh-cgc-core": "workspace:*",
+    "dsh-cgc-panels": "workspace:*",
+    "dsh-cgc-roles": "workspace:*"
   },
   "dsh": {
     "bundle": {
