@@ -4,21 +4,19 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
+
 import { ConnectionStore, validateMcpUrl } from '../src/store.ts'
 import { Config } from '../src/store.ts'
 import { mountSettings } from './helpers.ts'
 
-const NS = settingsNamespace('dsh-cgc-core')
+const NS = 'dsh-cgc-core'
 
 /** A store wired to a real (in-memory) settings provider, like index.ts does. */
 async function setup(doc?: Record<string, unknown>) {
   const { ctx, provider } = await mountSettings(doc)
   const store = new ConnectionStore()
-  installSettingsSection(ctx, NS, Config, {}, {
-    setSource: (source) => { store.setSource(source) },
-    onChange: () => {},
-  })
+  const scope = provider.register(NS, Config)
+  store.setSource(() => scope.get())
   store.setWriter(ops => provider.mutate(NS, ops))
   return { ctx, provider, store }
 }
@@ -27,7 +25,7 @@ describe('ConnectionStore', () => {
   it('starts unconfigured with defaults', async () => {
     const { store } = await setup()
     expect(store.configured()).toBe(false)
-    expect(store.get()).toEqual({ enabled: true, announceToAgent: true, url: '', token: '' })
+    expect(store.get()).toEqual({ enabled: true, announceToAgent: true, url: '', web_url: '', token: '' })
   })
 
   it('connect persists url+token and reports configured', async () => {

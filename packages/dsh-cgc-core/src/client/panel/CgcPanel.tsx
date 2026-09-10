@@ -135,17 +135,6 @@ export function CgcPanel({ controller, api }: CgcPanelProps) {
               <code className={css.statusValue}>{status.url}</code>
             </div>
           )}
-          {status !== undefined && status.web_url !== '' && (
-            <div className={css.statusRow}>
-              <span className={css.statusLabel}>{tt('status.web')}</span>
-              <a className={css.statusLink} href={status.web_url} target="_blank" rel="noreferrer">{status.web_url}</a>
-            </div>
-          )}
-          {status !== undefined && status.web_url !== '' && (
-            <div className={css.statusRow}>
-              <a className={css.statusLink} href={status.web_url} target="_blank" rel="noreferrer">{tt('status.revoke')}</a>
-            </div>
-          )}
         </section>
 
         {status?.connected === true ? (

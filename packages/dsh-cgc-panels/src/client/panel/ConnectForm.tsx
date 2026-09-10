@@ -94,7 +94,7 @@ export function ConnectForm({ api, onStatus, status }: ConnectFormProps): ReactN
           {status?.web_url !== undefined && status.web_url !== '' && (
             <>
               {' '}
-              <a className={css.link} data-link="reissue" href={`${status.web_url}/mcp`} target="_blank" rel="noreferrer noopener">
+              <a className={css.link} data-link="reissue" href={status.web_url} target="_blank" rel="noreferrer noopener">
                 {tt('state.tokenReissue')}
               </a>
             </>

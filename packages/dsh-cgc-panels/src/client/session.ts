@@ -5,7 +5,7 @@
  * hub-only instead of failing the plugin fiber.
  */
 
-import type { ISessions } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 
 /** The slice of the sessions service the panel family reads. */
 export type SessionsLike = Pick<ISessions, 'list'>
@@ -16,7 +16,8 @@ export function activePreset(sessions: SessionsLike | undefined): string | undef
   const snapshot = sessions.list.getSnapshot()
   const current = snapshot.current
   if (current === undefined) return undefined
-  return snapshot.byId[current]?.agentPreset
+  const value = snapshot.byId[current]?.projectionValues?.agentPreset
+  return typeof value === 'string' ? value : undefined
 }
 
 /** Whether a session is currently open (row-click injection needs one). */

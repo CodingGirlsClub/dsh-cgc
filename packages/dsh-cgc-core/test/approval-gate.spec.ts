@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { defineTool, type JsonValue, type ToolExecutionInput } from '@deepseek-ai/dsh-tools'
 import { installApprovalGate, renderArgumentFields } from '../src/approval-gate.ts'
 import { apply, CGC_NAMESPACE } from '../src/index.ts'
@@ -67,7 +67,7 @@ async function call(ctx: Context, rawName: string, args: Record<string, unknown>
   seq += 1
   return ctx.tools.execute({
     signal: SIGNAL,
-    callId: CallId(`t${seq}`),
+    callId: ToolCallId(`t${seq}`),
     name: `${CGC_TOOL_PREFIX}${rawName}`,
     arguments: args,
     agent: AGENT,
@@ -285,7 +285,7 @@ describe('installApprovalGate', () => {
       output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text' as const, text: String(value) }] },
       execute: async () => 'ok' as unknown as JsonValue,
     }))
-    const result = await ctx.tools.execute({ signal: SIGNAL, callId: CallId('x1'), name: 'read_file', arguments: {}, agent: AGENT })
+    const result = await ctx.tools.execute({ signal: SIGNAL, callId: ToolCallId('x1'), name: 'read_file', arguments: {}, agent: AGENT })
     expect(result.isError).toBe(false)
     expect(asks).toHaveLength(0)
   })

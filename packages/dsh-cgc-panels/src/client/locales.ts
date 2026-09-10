@@ -44,7 +44,7 @@ export const zh = {
   'activity.write': '写操作',
   // connect form
   'form.url': 'MCP URL',
-  'form.urlHint': '本地开发默认为 http://localhost:4102/mcp',
+  'form.urlHint': '本地开发默认为 http://localhost:4000/mcp',
   'form.token': '连接 token',
   'form.tokenHint': '在 CGC-2046 网站的 MCP 页面创建；建议用设备命名',
   'form.tokenStored': '已存 token，留空则保持不变',
@@ -127,7 +127,7 @@ export const en: Record<PanelsKey, string> = {
   'activity.error.tool': 'Tool call failed',
   'activity.write': 'Write',
   'form.url': 'MCP URL',
-  'form.urlHint': 'Local development defaults to http://localhost:4102/mcp',
+  'form.urlHint': 'Local development defaults to http://localhost:4000/mcp',
   'form.token': 'Connection token',
   'form.tokenHint': 'Create one on the CGC-2046 site\'s MCP page; device names recommended',
   'form.tokenStored': 'A token is stored; leave empty to keep it',

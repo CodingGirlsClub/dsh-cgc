@@ -88,8 +88,8 @@ export interface CgcRoutesDeps {
 /** The GET /status body: public projection only, never the token. */
 export function statusBody(deps: CgcRoutesDeps): CgcStatusBody {
   const config = deps.store.get()
-  let webUrl = ''
-  if (config.url !== '') {
+  let webUrl = config.web_url
+  if (webUrl === '' && config.url !== '') {
     try {
       webUrl = new URL(config.url).origin
     } catch {
@@ -149,16 +149,18 @@ export function makeRoutes(deps: CgcRoutesDeps): WebRoute[] {
             return
           }
           let url: string | undefined
+          let webUrl: string | undefined
           let token: string | undefined
           try {
             url = readField(body, 'url')
+            webUrl = readField(body, 'web_url')
             token = readField(body, 'token')
           } catch (error) {
             writeJson(res, 400, { error: error instanceof Error ? error.message : String(error) })
             return
           }
-          if (url === undefined && token === undefined) {
-            writeJson(res, 400, { error: 'url or token is required' })
+          if (url === undefined && webUrl === undefined && token === undefined) {
+            writeJson(res, 400, { error: 'url, web_url or token is required' })
             return
           }
           if (url !== undefined) {
@@ -168,8 +170,22 @@ export function makeRoutes(deps: CgcRoutesDeps): WebRoute[] {
               return
             }
           }
+          if (webUrl !== undefined) {
+            try {
+              const site = new URL(webUrl)
+              if (site.protocol !== 'https:' && site.protocol !== 'http:') throw new Error('scheme')
+              webUrl = site.origin
+            } catch {
+              writeJson(res, 400, { error: 'web_url must be an http(s) URL' })
+              return
+            }
+          }
           try {
-            await deps.store.connect({ ...url === undefined ? {} : { url }, ...token === undefined ? {} : { token } })
+            await deps.store.connect({
+              ...url === undefined ? {} : { url },
+              ...webUrl === undefined ? {} : { web_url: webUrl },
+              ...token === undefined ? {} : { token },
+            })
           } catch (error) {
             writeJson(res, 503, { error: redactText(error instanceof Error ? error.message : String(error), storeSecrets(deps.store)) })
             return

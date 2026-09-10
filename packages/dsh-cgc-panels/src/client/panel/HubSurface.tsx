@@ -103,7 +103,7 @@ export function HubSurface({ api, channel }: HubSurfaceProps): ReactNode {
               <p className={css.stateHint}>
                 <a className={css.link} href={status.web_url} target="_blank" rel="noreferrer noopener">{tt('status.web')}</a>
                 {' · '}
-                <a className={css.link} href={`${status.web_url}/mcp`} target="_blank" rel="noreferrer noopener">{tt('status.revoke')}</a>
+                <a className={css.link} href={status.web_url} target="_blank" rel="noreferrer noopener">{tt('status.revoke')}</a>
               </p>
             )}
             {status.configured && (

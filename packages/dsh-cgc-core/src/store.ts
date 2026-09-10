@@ -5,12 +5,12 @@
  * settings wire surface (settings UI, api proxy describe) strips it —
  * the section never hands the token back out (KTD2).
  *
- * Reads ride the resolved settings scope (installSettingsSection feeds the
+ * Reads ride the resolved settings scope (`settings.register` feeds the
  * source thunk); writes go through the provider's path-addressed `mutate`
  * so a caller holding a redacted view never has to restate the secret.
  */
 
-import z from 'schemastery'
+import z from '@deepseek-ai/schemastery'
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 
 /** Plugin cordis-row config / user-section input shape (all fields optional). */
@@ -21,6 +21,8 @@ export interface Config {
   announceToAgent?: boolean
   /** MCP endpoint URL. */
   url?: string
+  /** Site origin shown in the panel's website links ('' = derive from url's origin). */
+  web_url?: string
   /** Connection token (role('secret') — wire-stripped). */
   token?: string
 }
@@ -30,6 +32,7 @@ export const Config: z<Config> = z.object({
   enabled: z.boolean().default(true),
   announceToAgent: z.boolean().default(true),
   url: z.string().default(''),
+  web_url: z.string().default(''),
   token: z.string().role('secret').default(''),
 })
 
@@ -39,6 +42,8 @@ export interface ConnectionConfig {
   announceToAgent: boolean
   /** MCP endpoint URL ('' = not configured). */
   url: string
+  /** Site origin for the panel's website links ('' = derive from url's origin). */
+  web_url: string
   /** Connection token ('' = not configured; never leaves the host). */
   token: string
 }
@@ -75,6 +80,9 @@ export class ConnectionStore {
   /** Raw section thunk; the composition entry until a scope attaches. */
   private current: () => Config
 
+  /** Composition-entry section, read while no settings scope is attached. */
+  private readonly fallback: Config
+
   /**
    * Path-addressed writer into the settings provider; undefined while no
    * settings service is mounted (writes then fail loud, never silently).
@@ -82,13 +90,18 @@ export class ConnectionStore {
   private writer: ((ops: readonly SettingsPathOp[]) => Promise<void>) | undefined
 
   constructor(entry?: Config) {
-    const fallback: Config = { ...entry }
-    this.current = () => fallback
+    this.fallback = { ...entry }
+    this.current = () => this.fallback
   }
 
   /** Hooks-facing: point reads at the resolved settings scope (or back at the entry). */
   setSource(source: () => Config): void {
     this.current = source
+  }
+
+  /** Hooks-facing teardown: point reads back at the composition entry. */
+  resetSource(): void {
+    this.current = () => this.fallback
   }
 
   /** Capture (or drop) the provider's path-mutation writer. */
@@ -103,6 +116,7 @@ export class ConnectionStore {
       enabled: value.enabled ?? true,
       announceToAgent: value.announceToAgent ?? true,
       url: value.url ?? '',
+      web_url: value.web_url ?? '',
       token: value.token ?? '',
     }
   }
@@ -117,9 +131,10 @@ export class ConnectionStore {
    * Store a connection: set url and/or token, applying the R1 invalidation
    * rule — changing the stored URL without re-submitting the token in the
    * same request drops the stored token (no token forwarding to a new
-   * endpoint). One atomic mutate carries the whole edit.
+   * endpoint). One atomic mutate carries the whole edit. `web_url` rides
+   * along as a plain field; '' restores origin derivation.
    */
-  async connect(payload: { url?: string; token?: string }): Promise<void> {
+  async connect(payload: { url?: string; web_url?: string; token?: string }): Promise<void> {
     const ops: SettingsPathOp[] = []
     const stored = this.current()
     if (payload.url !== undefined) {
@@ -129,16 +144,18 @@ export class ConnectionStore {
       }
     }
     if (payload.token !== undefined) ops.push({ op: 'set', path: ['token'], value: payload.token })
+    if (payload.web_url !== undefined) ops.push({ op: 'set', path: ['web_url'], value: payload.web_url })
     if (ops.length === 0) return
     await this.write(ops)
   }
 
-  /** Remove the connection config (url + token); other keys untouched. */
+  /** Remove the connection config (url + web_url + token); other keys untouched. */
   async disconnect(): Promise<void> {
     const stored = this.current()
-    if (stored.url === '' && stored.token === '') return
+    if (stored.url === '' && stored.token === '' && (stored.web_url ?? '') === '') return
     await this.write([
       { op: 'unset', path: ['url'] },
+      { op: 'unset', path: ['web_url'] },
       { op: 'unset', path: ['token'] },
     ])
   }

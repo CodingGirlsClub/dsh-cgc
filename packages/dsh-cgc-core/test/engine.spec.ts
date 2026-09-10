@@ -6,7 +6,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { ActivityLog } from '../src/activity.ts'
 import { CgcEngine } from '../src/engine.ts'
 import {
@@ -117,7 +117,7 @@ describe('CgcEngine', () => {
 
     const result = await ctx.tools.execute({
       signal: testSignal,
-      callId: CallId('c1'),
+      callId: ToolCallId('c1'),
       name: 'mcp__cgc-2046__get_workspace_context',
       arguments: { workspace_id: 'ws-1' },
     })
@@ -167,7 +167,7 @@ describe('CgcEngine', () => {
 
     const result = await ctx.tools.execute({
       signal: testSignal,
-      callId: CallId('c2'),
+      callId: ToolCallId('c2'),
       name: 'mcp__cgc-2046__create_invitation',
       arguments: { workspace_id: 'ws-1', target_email: 'a@b.c' },
     })
@@ -238,7 +238,7 @@ describe('CgcEngine', () => {
 
     const result = await ctx.tools.execute({
       signal: testSignal,
-      callId: CallId('c3'),
+      callId: ToolCallId('c3'),
       name: 'mcp__cgc-2046__confirm_operation',
       arguments: { pending_id: 'p-stale' },
     })
@@ -321,7 +321,7 @@ describe('CgcEngine', () => {
 
     const result = await ctx.tools.execute({
       signal: testSignal,
-      callId: CallId('c4'),
+      callId: ToolCallId('c4'),
       name: 'mcp__cgc-2046__waive_payment',
       arguments: { workspace_id: 'ws-1', enrollment_id: 'e-1' },
     })

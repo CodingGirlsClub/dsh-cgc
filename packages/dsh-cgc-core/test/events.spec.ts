@@ -12,7 +12,7 @@ import net from 'node:net'
 import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
-import { CallId, HarnessError } from '@deepseek-ai/dsh-llm'
+import { ToolCallId, HarnessError } from '@deepseek-ai/dsh-llm'
 import type { Duplex } from 'node:stream'
 import { defineTool, type JsonValue } from '@deepseek-ai/dsh-tools'
 import { ActivityLog } from '../src/activity.ts'
@@ -208,7 +208,7 @@ describe('event channel (U7)', () => {
 
     // post-execute first (the normal order), session twin second.
     const result = await ctx.tools.execute({
-      signal: SIGNAL, callId: CallId('call-1'), name: 'mcp__cgc-2046__create_invitation', arguments: { workspace_id: 'w-1' },
+      signal: SIGNAL, callId: ToolCallId('call-1'), name: 'mcp__cgc-2046__create_invitation', arguments: { workspace_id: 'w-1' },
     })
     expect(result.isError).toBe(false)
     emitSessionPair(ctx, 'call-1', 'mcp__cgc-2046__create_invitation')
@@ -223,7 +223,7 @@ describe('event channel (U7)', () => {
     // session first, post-execute twin second (pipeline-failure order).
     emitSessionPair(ctx, 'call-2', 'mcp__cgc-2046__create_invitation')
     await ctx.tools.execute({
-      signal: SIGNAL, callId: CallId('call-2'), name: 'mcp__cgc-2046__create_invitation', arguments: { workspace_id: 'w-2' },
+      signal: SIGNAL, callId: ToolCallId('call-2'), name: 'mcp__cgc-2046__create_invitation', arguments: { workspace_id: 'w-2' },
     })
     expect(frames).toHaveLength(2)
     expect(activity.list()).toHaveLength(2)
@@ -241,8 +241,8 @@ describe('event channel (U7)', () => {
     })
     registerCgcTool(ctx, 'get_workflow', async () => ({ ok: true }))
 
-    await ctx.tools.execute({ signal: SIGNAL, callId: CallId('b1'), name: 'mcp__cgc-2046__get_workspace_context', arguments: {} })
-    await ctx.tools.execute({ signal: SIGNAL, callId: CallId('r1'), name: 'mcp__cgc-2046__get_workflow', arguments: {} })
+    await ctx.tools.execute({ signal: SIGNAL, callId: ToolCallId('b1'), name: 'mcp__cgc-2046__get_workspace_context', arguments: {} })
+    await ctx.tools.execute({ signal: SIGNAL, callId: ToolCallId('r1'), name: 'mcp__cgc-2046__get_workflow', arguments: {} })
 
     const events = hub.since(0)
     expect(events.events.map(e => [e.tool, e.ok])).toEqual([
