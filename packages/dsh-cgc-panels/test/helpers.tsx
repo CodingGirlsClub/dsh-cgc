@@ -114,7 +114,7 @@ export function stubChannel(): {
 export function stubSessions(preset: string): SessionsLike {
   return {
     list: {
-      getSnapshot: () => ({ current: 's1', byId: { s1: { agentPreset: preset } } }),
+      getSnapshot: () => ({ current: 's1', byId: { s1: { projectionValues: { agentPreset: preset } } } }),
     },
   } as unknown as SessionsLike
 }

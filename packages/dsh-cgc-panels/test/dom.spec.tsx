@@ -169,7 +169,7 @@ describe('hub connect form', () => {
 
     expect(mustQuery('[data-error="token-invalid"]').textContent).toContain(tt('state.tokenInvalid'))
     const link = mustQuery<HTMLAnchorElement>('a[data-link="reissue"]')
-    expect(link.href).toBe('https://cgc.example/mcp')
+    expect(link.href).toBe('https://cgc.example/')
     expect(link.target).toBe('_blank')
   })
 

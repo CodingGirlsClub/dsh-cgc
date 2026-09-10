@@ -1,6 +1,6 @@
 # cgc-assistant：CGC-2046 平台通用助手预设。
 #
-# 人设行 shadow 部署默认 persona；skill-filesystem + tool-skill 让
+# 人设行 shadow 部署默认 persona；工具行对齐内置 standard 预设（bash/fs/jobs/compaction），skill-filesystem + tool-skill 让
 # <dshHome>/skills 下的 cgc-core-onboarding 对该预设可达。CGC 工具由
 # dsh-cgc-core 插件注册进宿主 tools 注册表，合并目录自动携带，无需在此声明。
 
@@ -51,6 +51,44 @@
 
 # 技能注册表在宿主组合里并按 scope 分层：这两行注册进本预设的那一层，
 # 使 <dshHome>/skills 下的 cgc-core-onboarding 对 cgc-assistant 可达。
+# ── tools（对齐内置 standard 预设的工具面——缺这些行 agent 只剩 skill 工具） ──
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: !!js process.platform !== 'win32'
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024
+
 - id: skill-filesystem
   name: '@deepseek-ai/dsh-skill-filesystem'
 

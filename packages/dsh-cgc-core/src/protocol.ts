@@ -26,7 +26,7 @@ export const CGC_SERVER_NAME = 'cgc-2046'
 export const CGC_TOOL_PREFIX = `mcp__${CGC_SERVER_NAME}__`
 
 /** Default MCP endpoint: the platform's loopback development value. */
-export const DEFAULT_MCP_URL = 'http://localhost:4102/mcp'
+export const DEFAULT_MCP_URL = 'http://localhost:4000/mcp'
 
 /** Machine-routable error codes the bridge throws (HarnessError.code). */
 export const CGC_MCP_CONNECTION = 'CGC_MCP_CONNECTION'

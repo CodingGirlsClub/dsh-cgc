@@ -18,7 +18,7 @@ import { apply } from '../src/index.ts'
 import { CGC_ANNOUNCEMENT_NAME } from '../src/prompt.ts'
 import { CGC_API } from '../src/protocol.ts'
 import { CGC_SKILL_ID, faceTargetDir } from '../src/materialize.ts'
-import { settingsNamespace, type SettingsProvider } from '@deepseek-ai/dsh-settings'
+import type { SettingsProvider } from '@deepseek-ai/dsh-settings'
 import { MemorySettings, mountRegistry } from './helpers.ts'
 
 /** Poll until the predicate holds or the deadline passes. */
@@ -102,7 +102,7 @@ describe('apply: agent faces (U4 announcement + U5/U6 materialization)', () => {
   })
 
   it('drops the announcement when announceToAgent is disabled', async () => {
-    await provider.mutate(settingsNamespace('dsh-cgc-core'), [{ op: 'set', path: ['announceToAgent'], value: false }])
+    await provider.mutate('dsh-cgc-core', [{ op: 'set', path: ['announceToAgent'], value: false }])
     await eventually(async () => {
       const assembly = await ctx!.systemPrompt.assemble()
       return assembly.sections.every(s => s.name !== CGC_ANNOUNCEMENT_NAME)

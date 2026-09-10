@@ -6,8 +6,9 @@
 
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
-import { CallId, HarnessError } from '@deepseek-ai/dsh-llm'
-import { defineTool, type JsonValue } from '@deepseek-ai/dsh-tools'
+import { ToolCallId, HarnessError } from '@deepseek-ai/dsh-llm'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { ActivityLog } from '../src/activity.ts'
 import { installErrorHook } from '../src/hooks.ts'
 import { CGC_MCP_AUTH, CGC_MCP_BUSINESS } from '../src/protocol.ts'
@@ -31,7 +32,7 @@ function registerCgcTool(ctx: Context, rawName: string, execute: () => Promise<J
 }
 
 async function call(ctx: Context, name: string, args: Record<string, unknown> = {}) {
-  return ctx.tools.execute({ signal: SIGNAL, callId: CallId('t1'), name, arguments: args })
+  return ctx.tools.execute({ signal: SIGNAL, callId: ToolCallId('t1'), name, arguments: args })
 }
 
 describe('installErrorHook', () => {

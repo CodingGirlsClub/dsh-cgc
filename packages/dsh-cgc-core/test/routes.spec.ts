@@ -8,7 +8,7 @@ import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
-import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
+
 import { ActivityLog } from '../src/activity.ts'
 import { CgcEngine } from '../src/engine.ts'
 import { CGC_API, type CgcStatusBody } from '../src/protocol.ts'
@@ -17,7 +17,7 @@ import { Config, ConnectionStore } from '../src/store.ts'
 import { mountRegistry, startMockMcp, type MockMcpServer } from './helpers.ts'
 import { MemorySettings } from './helpers.ts'
 
-const NS = settingsNamespace('dsh-cgc-core')
+const NS = 'dsh-cgc-core'
 const TOKEN = 'cgc_' + 'a'.repeat(43)
 
 /** Serve the route family on 127.0.0.1 with a random port. */
@@ -57,12 +57,11 @@ async function setup() {
   const store = new ConnectionStore()
   const activity = new ActivityLog()
   const engine = new CgcEngine(ctx, activity)
-  installSettingsSection(ctx, NS, Config, {}, {
-    setSource: (source) => { store.setSource(source) },
-    onChange: () => {
-      const value = store.get()
-      void engine.sync(value.url !== '' && value.token !== '' ? { url: value.url, token: value.token } : undefined)
-    },
+  const scope = provider.register(NS, Config)
+  store.setSource(() => scope.get())
+  scope.watch(() => {
+    const value = store.get()
+    void engine.sync(value.url !== '' && value.token !== '' ? { url: value.url, token: value.token } : undefined)
   })
   store.setWriter(ops => provider.mutate(NS, ops))
   const routes = makeRoutes({ store, engine, activity })
@@ -106,6 +105,27 @@ describe('/api/dsh-cgc-core routes', () => {
     expect(body.status.token_configured).toBe(true)
     expect(body.status.url).toBe('http://localhost:4102/mcp')
     expect(body.status.web_url).toBe('http://localhost:4102')
+  })
+
+  it('POST /connect with only a token keeps the stored URL (skill caller shape)', async () => {
+    const { base, close } = await setup()
+    cleanups.push(close)
+    await fetch(base + CGC_API.connect, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url: 'http://localhost:4102/mcp', token: TOKEN }),
+    })
+    const rotated = 'cgc_' + 'b'.repeat(43)
+    const response = await fetch(base + CGC_API.connect, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: rotated }),
+    })
+    expect(response.status).toBe(200)
+    const body = await response.json() as { status: CgcStatusBody }
+    expect(body.status.configured).toBe(true)
+    expect(body.status.url).toBe('http://localhost:4102/mcp')
+    expect(JSON.stringify(body)).not.toContain(rotated)
   })
 
   it('GET /status reports the unconfigured shape without a token', async () => {

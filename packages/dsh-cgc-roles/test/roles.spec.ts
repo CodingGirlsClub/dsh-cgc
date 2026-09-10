@@ -79,10 +79,10 @@ describe('role preset structure (R7)', () => {
       const preset = await loadPreset(id)
       expect(preset.presetMeta['name']).toBe(id)
       expect(typeof preset.presetMeta['description']).toBe('string')
-      // Same composition family as core's original preset: persona +
-      // skill-filesystem + tool-skill rows.
+      // Standard-mode tool surface is mandatory: a preset without the tool
+      // rows leaves the agent with only the skill tool (live regression).
       const ids = (preset.cordisRows as Array<{ id?: unknown }>).map(row => row.id)
-      expect(ids).toEqual(['persona', 'skill-filesystem', 'tool-skill'])
+      expect(ids).toEqual(['persona', 'agent-instructions', 'tool-bash', 'tool-pwsh', 'tool-fs', 'tool-fs-search', 'tool-jobs', 'compaction', 'skill-filesystem', 'tool-skill'])
     }
   })
 

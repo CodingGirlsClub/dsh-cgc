@@ -9,7 +9,6 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
@@ -34,8 +33,8 @@ export const name = 'dsh-cgc-core'
 /** Services required before the CGC surfaces can mount. */
 export const inject = ['webServer', 'tools', 'systemPrompt']
 
-/** The settings namespace (validated) the connection section lives under. */
-export const CGC_NAMESPACE = settingsNamespace(CGC_SETTINGS_NAMESPACE)
+/** The settings namespace the connection section lives under. */
+export const CGC_NAMESPACE = CGC_SETTINGS_NAMESPACE
 
 export { Config }
 export type { ConnectionConfig } from './store.ts'
@@ -82,11 +81,24 @@ export function apply(ctx: Context, config?: Config): void {
   const engine = new CgcEngine(ctx, activity)
   ctx.effect(() => () => { engine.dispose() }, 'dsh-cgc-core: engine')
 
-  // The provider's path-addressed writer, captured while the settings
-  // service is live (routes write through it; absence fails loud at write).
+  // Register the connection section on the settings service and capture its
+  // scope/writer while the service is live (routes write through the writer;
+  // absence fails loud at write). The trailing sync() below still covers
+  // deployments with no settings service — the inject callback never fires
+  // there, so reads stay on the composition entry.
   ctx.inject(['settings'], (sctx) => {
+    const scope = sctx.settings.register(CGC_NAMESPACE, Config, { base: config ?? {} })
+    store.setSource(() => scope.get())
     store.setWriter(ops => sctx.settings.mutate(CGC_NAMESPACE, ops))
-    sctx.effect(() => () => { store.setWriter(undefined) }, 'dsh-cgc-core: settings writer')
+    // scope.watch fires on commits only — restore the boot connection from
+    // the just-attached resolved section, then keep riding future commits.
+    sync()
+    const unwatch = scope.watch(() => { sync() })
+    sctx.effect(() => () => {
+      unwatch()
+      store.setWriter(undefined)
+      store.resetSource()
+    }, 'dsh-cgc-core: settings scope')
   })
 
   // CSRF store (KTD5): one process-lifetime token; write routes require the
@@ -158,15 +170,8 @@ export function apply(ctx: Context, config?: Config): void {
     )
   }
 
-  installSettingsSection(ctx, CGC_NAMESPACE, Config, config ?? {}, {
-    setSource: (source) => {
-      store.setSource(source)
-    },
-    onChange: sync,
-  })
-
   // Initial registration from the composition entry (covers deployments with
-  // no settings service, whose installSettingsSection never fires its hooks).
+  // no settings service, whose inject callback above never fires).
   sync()
 
   // KTD6: materialize the agent preset + onboarding skill into the user
